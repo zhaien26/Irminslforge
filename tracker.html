@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Irminsul Forge · Tracking Center — pick characters, monitor their builds</title>
+<meta name="description" content="Select exactly which Genshin 7.2 characters you want to watch, then monitor levels, talents, missing materials, weekly-boss gates and a combined farming list across the whole watchlist.">
+<meta name="theme-color" content="#070b14">
+<link rel="stylesheet" href="app.css?v=20261111">
+</head>
+<body>
+
+<nav class="top">
+  <div class="brand"><span class="sigil"></span>
+    <span>Irminsul <span class="gold">Forge</span><small>7.2 · Tracking Center</small></span>
+  </div>
+  <div class="navlinks">
+    <a href="index.html">Roster &amp; builds</a>
+    <a href="builder.html">Team builder</a>
+    <a href="tracker.html" aria-current="page">Tracking Center</a>
+    <span class="navpill"><span class="dot"></span><span data-watchcount>0</span> tracked</span>
+    <button class="btn sm ghost" id="btnSettings">Farm rates</button>
+    <button class="btn sm ghost" id="btnIO">Export / import</button>
+  </div>
+</nav>
+
+<div class="wrap">
+
+  <header class="hero">
+    <div>
+      <span class="kicker"><span class="dot"></span>Version 7.2 · Hour of Ruin</span>
+      <h1>Tracking Center — <em>pick who you watch</em>, then monitor them</h1>
+      <p class="lead">Tick characters in the list on the left — that is the whole setup. Every tracked character
+        gets a live card with level, talent levels and what you still owe, and everything rolls up into one
+        combined material list, a weekly farm plan and a “who is closest to ready” ranking. No digging through
+        character pages, no popups: this is the one screen.</p>
+    </div>
+    <div class="heroactions">
+      <button class="btn gold" id="btnQuickAdd">＋ Track my 7.2 team</button>
+      <a class="btn" href="index.html">Browse the roster</a>
+      <button class="btn ghost" id="btnPrint">Print / PDF</button>
+    </div>
+  </header>
+
+  <div class="notice" data-storage-notice hidden>
+    <span>⚠︎</span>
+    <span><b>This browser is blocking local storage</b>, so your tracker will reset on reload. Use
+      <i>Export / import</i> to keep a copy, or open the file directly instead of through a preview pane.</span>
+  </div>
+
+  <section class="stats" id="stats" aria-label="Watchlist summary"></section>
+
+  <section class="trk">
+    <!-- ---------- the selection sector ---------- -->
+    <aside class="picker panel" aria-label="Select characters to track">
+      <div class="panelhead" style="margin-bottom:2px">
+        <h2>Select <span id="pickCount"></span></h2>
+        <span class="badge gold" id="trackedBadge">0 tracked</span>
+      </div>
+      <div class="tools">
+        <div class="search"><input id="q" type="search" placeholder="Search 123 characters…" autocomplete="off" aria-label="Search characters"></div>
+        <div class="chips" id="elChips" role="group" aria-label="Filter by element"></div>
+        <div class="chips" id="miscChips" role="group" aria-label="Extra filters"></div>
+      </div>
+      <div class="picklist" id="pickList"></div>
+      <div class="pickfoot">
+        <button class="btn xs" data-bulk="owned">＋ All owned</button>
+        <button class="btn xs" data-bulk="new">＋ New in 7.2</button>
+        <button class="btn xs" data-bulk="none">Clear list</button>
+      </div>
+      <p class="dim" style="margin:0;font-size:11.5px">Ticking a box only decides <b>who you monitor</b> — it never
+        changes your team. Material counts are saved in this browser.</p>
+    </aside>
+
+    <!-- ---------- the monitoring sector ---------- -->
+    <div>
+      <div class="toolbar">
+        <div class="left">
+          <div class="seg" role="group" aria-label="View">
+            <button id="vCards" aria-pressed="true">Cards</button>
+            <button id="vTable" aria-pressed="false">Table</button>
+          </div>
+          <span class="field"><label for="sortBy">Sort</label>
+            <select id="sortBy">
+              <option value="priority">Priority</option>
+              <option value="missing">Most missing</option>
+              <option value="pct">Closest to ready</option>
+              <option value="eta">Longest farm</option>
+              <option value="level">Level</option>
+              <option value="name">Name</option>
+            </select></span>
+          <span class="field"><label for="statusFilter">Show</label>
+            <select id="statusFilter">
+              <option value="all">Everyone tracked</option>
+              <option value="ready">Can ascend now</option>
+              <option value="progress">In progress</option>
+              <option value="new">Not started</option>
+              <option value="complete">Build complete</option>
+              <option value="gate">Only gated on a weekly</option>
+            </select></span>
+        </div>
+        <div class="right">
+          <button class="btn sm ghost" id="btnExpand">Expand all</button>
+          <button class="btn sm ghost" id="btnCollapse">Collapse</button>
+        </div>
+      </div>
+      <div id="watch" aria-live="polite"></div>
+    </div>
+  </section>
+
+  <!-- ---------- weekly farm plan ---------- -->
+  <section class="panel" id="farm">
+    <div class="panelhead">
+      <h2>This week at a glance <span>what your watchlist actually needs, day by day</span></h2>
+      <span class="badge ice" id="todayBadge"></span>
+    </div>
+    <div class="days" id="days"></div>
+    <p class="dim" style="margin:11px 0 0;font-size:12.5px" id="farmNote"></p>
+  </section>
+
+  <!-- ---------- combined shopping list ---------- -->
+  <section class="panel" id="shop">
+    <div class="panelhead">
+      <h2>Combined material list <span id="shopSub"></span></h2>
+      <button class="btn sm ghost" id="btnCopyShop">Copy list</button>
+    </div>
+    <div class="shoptabs" id="shopTabs" role="group" aria-label="Filter the combined list"></div>
+    <div id="shopBody"></div>
+  </section>
+
+  <footer class="foot">
+    <span>Irminsul Forge · Tracking Center — fan-made planning tool for Genshin Impact 7.2. Progress is stored only in this browser.</span>
+    <span><a href="index.html">Roster</a> · <a href="builder.html">Team builder</a></span>
+  </footer>
+</div>
+
+<!-- ---------- modals ---------- -->
+<div class="modal" id="settings" role="dialog" aria-modal="true" aria-label="Farm rates">
+  <div class="box">
+    <div class="modalhead"><div><h2>How fast do you farm?</h2>
+      <p class="muted" style="margin:4px 0 0;font-size:13px">Weekly yields used for the time estimates. Change these to match
+        how you play — nothing else in the app depends on them.</p></div>
+      <button class="xbtn" data-close="#settings" aria-label="Close">✕</button></div>
+    <div id="rates"></div>
+    <div class="foot" style="border:0;padding-top:12px">
+      <button class="btn sm ghost" id="btnRatesDefault">Restore defaults</button>
+      <button class="btn sm gold" data-close="#settings">Done</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="io" role="dialog" aria-modal="true" aria-label="Export or import">
+  <div class="box">
+    <div class="modalhead"><div><h2>Back up your tracker</h2>
+      <p class="muted" style="margin:4px 0 0;font-size:13px">Everything lives in this browser. Copy this text to move it to
+        another device, or paste a saved copy to restore it.</p></div>
+      <button class="xbtn" data-close="#io" aria-label="Close">✕</button></div>
+    <div class="field" style="margin-bottom:10px"><button class="btn sm" id="btnCopyOut">Copy</button>
+      <button class="btn sm ghost" id="btnDownload">Download .json</button>
+      <button class="btn sm ghost" id="btnPasteIn">Load from clipboard</button></div>
+    <textarea id="ioText" rows="14" style="width:100%;font-family:var(--mono);font-size:12px" spellcheck="false"></textarea>
+    <div class="foot" style="border:0;padding-top:12px">
+      <button class="btn sm" id="btnImport">Import what's in the box</button>
+      <span class="dim" id="ioMsg" style="font-size:12.5px"></span>
+    </div>
+  </div>
+</div>
+
+<script src="data.js"></script>
+<script src="img.js"></script>
+<script src="forge-core.js"></script>
+<script src="guide.js?v=20261111"></script>
+<script src="app.js?v=20261111"></script>
+<script src="page-tracker.js?v=20261111"></script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+{
+  "name": "travelers-guide",
+  "version": "2.0.0",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "node --test test/"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "description": "Irminsul Forge 7.2 with a dedicated Tracking Center",
+  "dependencies": {
+    "jsdom": "^29.1.1"
+  }
+}

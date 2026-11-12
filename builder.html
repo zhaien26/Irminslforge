@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Irminsul Forge · Team builder for Genshin 7.2</title>
+<meta name="description" content="Build a 7.2 team slot by slot: a step-by-step rotation (who to press, in what order), the stats every member needs, resonance, whether the Stellar or Lunar engine is actually switched on, and a one-click hand-off to the Tracking Center.">
+<meta name="theme-color" content="#070b14">
+<link rel="stylesheet" href="app.css?v=20261111">
+</head>
+<body>
+
+<nav class="top">
+  <div class="brand"><span class="sigil"></span>
+    <span>Irminsul <span class="gold">Forge</span><small>7.2 · Team builder</small></span>
+  </div>
+  <div class="navlinks">
+    <a href="index.html">Roster &amp; builds</a>
+    <a href="builder.html" aria-current="page">Team builder</a>
+    <a href="tracker.html">Tracking Center</a>
+    <span class="navpill"><span class="dot"></span><span data-watchcount>0</span> tracked</span>
+  </div>
+</nav>
+
+<div class="wrap">
+  <header class="hero">
+    <div>
+      <span class="kicker"><span class="dot"></span>Version 7.2 · Hour of Ruin</span>
+      <h1>Four slots, <em>then track all four</em></h1>
+      <p class="lead">Click a slot and pick a character — or load a tested lineup below. You get a <b>step-by-step
+        rotation</b> (who to swap to, which buttons, and why), the <b>stats every member needs</b>, and a check that your
+        reaction engine is actually switched on. When the team is right, one button sends it to the Tracking Center.</p>
+    </div>
+    <div class="heroactions">
+      <a class="btn gold" id="btnTrackTeam" href="tracker.html">✓ Track this team</a>
+      <a class="btn" href="#rotationPanel">Rotation guide ↓</a>
+      <button class="btn ghost" id="btnShare">Copy share link</button>
+      <a class="btn" href="tracker.html">Tracking Center</a>
+    </div>
+  </header>
+
+  <section class="panel">
+    <div class="panelhead">
+      <h2>Your team <span>click a slot, then a character</span></h2>
+      <div class="rowline" style="gap:10px"><span class="dim" style="font-size:12px">Slot in focus:</span>
+        <div class="seg" id="slotSeg" role="group" aria-label="Active slot"></div></div>
+    </div>
+    <div class="slots" id="slots"></div>
+  </section>
+
+  <section class="panel">
+    <div class="panelhead"><h2>Or start from a tested 7.2 lineup</h2></div>
+    <div class="presets" id="presets"></div>
+    <div id="startersWrap" hidden>
+      <div class="eyebrow" style="margin:16px 0 9px">Just started playing? Learn rotations on one of these</div>
+      <div class="presets" id="starters"></div>
+    </div>
+  </section>
+
+  <section class="panel" id="rotationPanel">
+    <div class="panelhead">
+      <h2>Rotation guide <span>who to press, in what order — and why</span></h2>
+      <div class="rowline" id="rotMeta" style="gap:8px;align-items:center" hidden>
+        <span class="badge gold" id="rotLen"></span>
+        <button class="btn sm ghost" id="btnCopyRot">Copy as text</button>
+      </div>
+    </div>
+    <div id="rotation"></div>
+  </section>
+
+  <section class="panel" id="teamStatsPanel" hidden>
+    <div class="panelhead">
+      <h2>Stat targets <span>what each member of this team should reach</span></h2>
+    </div>
+    <div id="teamStats"></div>
+  </section>
+
+  <section class="two">
+    <div class="panel" id="detailPanel">
+      <div class="panelhead"><h2>Selected character</h2>
+        <span class="badge ice" id="detailHint">slot in focus</span></div>
+      <div id="detail"></div>
+    </div>
+    <div class="panel" id="analysis">
+      <div class="panelhead"><h2>Team analysis</h2></div>
+      <div id="analysisBody"></div>
+    </div>
+  </section>
+
+  <footer class="foot">
+    <span>Irminsul Forge · fan-made planning tool for Genshin Impact. Roster and builds follow a fictional “Version 7.2” snapshot.</span>
+    <span><a href="index.html">Roster</a> · <a href="tracker.html">Tracking Center</a></span>
+  </footer>
+</div>
+
+<div class="modal" id="pick" role="dialog" aria-modal="true" aria-label="Choose a character">
+  <div class="box">
+    <div class="modalhead"><div><h2>Choose a character <span class="dim" id="pickFor"></span></h2>
+      <p class="muted" style="margin:4px 0 0;font-size:13px">Click to drop them in the focused slot. ＋ Track adds them to the
+        Tracking Center without touching the team.</p></div>
+      <button class="xbtn" data-close="#pick" aria-label="Close">✕</button></div>
+    <div class="toolbar" style="margin-bottom:10px">
+      <div class="search"><input id="pq" type="search" placeholder="Search…" autocomplete="off" aria-label="Search characters"></div>
+      <div class="chips" id="pEl"></div>
+      <button class="btn sm ghost" data-close="#pick">Done</button>
+    </div>
+    <div class="grid" id="pGrid" style="max-height:52vh;overflow:auto"></div>
+  </div>
+</div>
+
+<script src="data.js"></script>
+<script src="img.js"></script>
+<script src="forge-core.js"></script>
+<script src="guide.js?v=20261111"></script>
+<script src="app.js?v=20261111"></script>
+<script src="page-builder.js?v=20261111"></script>
+</body>
+</html>
