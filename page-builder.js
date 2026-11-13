@@ -86,7 +86,7 @@
       (art ? "<h4>Artifact</h4><ul>" + art.map(function (x) { return "<li>" + esc(x) + "</li>"; }).join("") + "</ul>" : "") +
       (recs.length ? '<h4>Add one of these</h4><div class="pilllist">' + recs.slice(0, 8).map(function (x) {
         return '<button class="pill" data-act="add" data-name="' + esc(x) + '">' + UI.avatar(x, 20) + " " + esc(x) + "</button>";
-      }).join("") + "</div><p class=\"dim\" style=\"font-size:12px;margin:8px 0 0\">Click one to drop them into the first empty slot.</p>" : "") +
+      }).join("") + "</div><p class=\"dim\" style=\"font-size:12px;margin:8px 0 0\">Choose one to drop them into the first empty slot.</p>" : "") +
       "</div>";
   }
 
@@ -265,7 +265,12 @@
     var name = b.getAttribute("data-name");
     if (a === "slot") { st.active = Number(b.getAttribute("data-i")); renderAll(); }
     else if (a === "clear") { ev.stopPropagation(); st.team[Number(b.getAttribute("data-i"))] = null; renderAll(); }
-    else if (a === "pick") { st.active = Number(b.getAttribute("data-i")); renderAll(); UI.openModal("#pick"); }
+    else if (a === "pick") {
+      st.active = Number(b.getAttribute("data-i"));
+      UI.openModal("#pick");          /* open first: renderAll() only fills the list while the picker is open */
+      renderAll();
+      UI.$("#pick .box").scrollTop = 0;
+    }
     else if (a === "choose") {
       var empty = st.team.indexOf(null); var i = st.team[st.active] ? (empty < 0 ? st.active : empty) : st.active;
       st.team[i] = name; UI.closeModal("#pick"); renderAll();
@@ -302,20 +307,14 @@
     var team = st.team.filter(Boolean);
     if (!team.length) { UI.toast("Put someone in a slot first", "warn"); return; }
     var url = location.origin + location.pathname + "?t=" + encodeURIComponent(team.join(","));
-    var ta = document.createElement("textarea");
-    ta.value = url; document.body.appendChild(ta); ta.select();
-    try { document.execCommand("copy"); UI.toast("Share link copied — " + team.length + " characters"); }
-    catch (e) { UI.toast("Copy blocked; the link is in the address bar shape: ?t=" + team.join(","), "warn"); }
-    ta.remove();
+    UI.copyText(url, function () { UI.toast("Share link copied — " + team.length + " characters"); },
+      function () { UI.toast("Copy blocked; the link is in the address bar shape: ?t=" + UI.esc(team.join(",")), "warn"); });
   });
   var copyRot = UI.$("#btnCopyRot");
   if (copyRot) copyRot.addEventListener("click", function () {
     if (!lastRotation) { UI.toast("Put someone in a slot first", "warn"); return; }
-    var ta = document.createElement("textarea");
-    ta.value = G.rotationText(lastRotation); document.body.appendChild(ta); ta.select();
-    try { document.execCommand("copy"); UI.toast("Rotation copied as text — paste it anywhere"); }
-    catch (e) { UI.toast("Copy was blocked by the browser", "warn"); }
-    ta.remove();
+    UI.copyText(G.rotationText(lastRotation), function () { UI.toast("Rotation copied as text — paste it anywhere"); },
+      function () { UI.toast("Copy was blocked by the browser", "warn"); });
   });
   UI.$("#btnTrackTeam").addEventListener("click", function (ev) {
     if (!st.team.filter(Boolean).length) { ev.preventDefault(); UI.toast("Pick at least one character first", "warn"); }

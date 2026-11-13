@@ -149,7 +149,7 @@
           '<span class="nm">' + esc(r.name) + "</span><span class=\"need\">need " + r.want + "</span>" +
           '<span class="need">have ' + r.have + '</span><span class="gap no">−' + r.miss + "</span></li>";
       }).join("") + "</ul>" : "") +
-      '<a class="btn sm gold" style="margin-top:10px" href="tracker.html">Open in Tracking Center →</a></div>';
+      '<a class="btn sm gold" style="margin-top:10px" href="tracker.html#wc-' + UI.slug(name) + '">Open in Tracking Center →</a></div>';
   }
   function openSheet(name) {
     var c = F.byName(name); if (!c) return;
@@ -169,7 +169,10 @@
       "<span>" + [er ? "ER target <b class=\"mono\">" + er[0] + "–" + er[1] + "%</b>" : (G && G.noEnergy(name) ? "no Energy needed" : ""),
         tn ? esc(tn.join(" / ")) : ""].filter(Boolean).join(" · ") + "</span></div>" +
       '<div class="rowline" style="margin-bottom:12px"><span>' +
-      '<button class="btn sm ' + (on ? "" : "gold") + '" data-act="track" data-name="' + esc(name) + '">' + (on ? "✓ Tracking — open centre" : "＋ Track this character") + "</button> " +
+      /* tracked: the first button really opens the Tracking Center (it used to say so but stopped tracking instead) */
+      (on ? '<a class="btn sm" href="tracker.html#wc-' + UI.slug(name) + '">✓ Tracking — open centre</a> ' +
+            '<button class="btn sm ghost" data-act="track" data-name="' + esc(name) + '">Stop tracking</button> '
+          : '<button class="btn sm gold" data-act="track" data-name="' + esc(name) + '">＋ Track this character</button> ') +
       '<a class="btn sm ghost" href="builder.html?t=' + encodeURIComponent(name) + '">Try in the team builder</a></span></div>' +
       "<div class=\"build\">" +
       weaponRows(b.bis, "Best in slot") +

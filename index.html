@@ -2,11 +2,18 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Irminsul Forge · Genshin 7.2 team builder, builds &amp; a real tracking sector</title>
 <meta name="description" content="Genshin Impact 7.2 builds — best 5★, 4★ and free weapons, artifact sets, talent order, stat targets, rotations and teams — plus a Tracking Center where you pick which characters to monitor and what you still owe them.">
-<meta name="theme-color" content="#070b14">
-<link rel="stylesheet" href="app.css?v=20261111">
+<meta name="theme-color" content="#0b1220">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Irminsul Forge">
+<link rel="stylesheet" href="app.css?v=20261112">
 </head>
 <body>
 
@@ -22,6 +29,13 @@
   </div>
 </nav>
 
+<!-- phones: the three sections as a tab bar along the bottom (hidden on wide screens) -->
+<nav class="tabbar" aria-label="Sections">
+  <a href="index.html" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8.2" r="3.7"/><path d="M4.6 20c.5-3.7 3.4-5.6 7.4-5.6s6.9 1.9 7.4 5.6"/></svg><span>Roster</span></a>
+  <a href="builder.html"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.6" y="3.6" width="7.2" height="7.2" rx="2"/><rect x="13.2" y="3.6" width="7.2" height="7.2" rx="2"/><rect x="3.6" y="13.2" width="7.2" height="7.2" rx="2"/><rect x="13.2" y="13.2" width="7.2" height="7.2" rx="2"/></svg><span>Team</span></a>
+  <a href="tracker.html"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.8 6.4l1.7 1.7 3-3.3M3.8 12.4l1.7 1.7 3-3.3M3.8 18.4l1.7 1.7 3-3.3M12.4 6.8h7.8M12.4 12.8h7.8M12.4 18.8h7.8"/></svg><span>Tracker</span><b class="tabcount" data-watchcount data-n="0">0</b></a>
+</nav>
+
 <div class="wrap">
   <header class="hero">
     <div>
@@ -35,6 +49,7 @@
         <a class="btn gold" href="tracker.html">▸ Open the Tracking Center</a>
         <a class="btn" href="builder.html">Team builder</a>
         <button class="btn ghost" id="btnJumpRoster">Jump to the roster</button>
+        <button class="btn ghost" data-install hidden>⤓ Install as an app</button>
       </div>
     </div>
     <div class="panel" style="min-width:260px;flex:0 1 320px">
@@ -68,8 +83,10 @@
       <div class="toolbar" style="margin:0">
         <div class="left">
           <div class="search"><input id="q" type="search" placeholder="Search name, role, region…" autocomplete="off" aria-label="Search the roster"></div>
-          <div class="chips" id="elChips" role="group" aria-label="Element"></div>
-          <div class="chips" id="miscChips" role="group" aria-label="Other filters"></div>
+          <div class="chiprow">
+            <div class="chips" id="elChips" role="group" aria-label="Element"></div>
+            <div class="chips" id="miscChips" role="group" aria-label="Other filters"></div>
+          </div>
         </div>
       </div>
     </div>
@@ -78,7 +95,7 @@
 
   <footer class="foot">
     <span>Irminsul Forge · fan-made planning tool for Genshin Impact. Not affiliated with HoYoverse. Roster, art and builds
-      follow a fictional “Version 7.2” snapshot; progress data is stored only in this browser.</span>
+      follow a fictional “Version 7.2” snapshot; progress data is stored only on this device.</span>
     <span><a href="tracker.html">Tracking Center</a> · <a href="builder.html">Team builder</a></span>
   </footer>
 </div>
@@ -88,11 +105,11 @@
   <div class="box" id="sheetBox"></div>
 </div>
 
-<script src="data.js"></script>
-<script src="img.js"></script>
-<script src="forge-core.js"></script>
-<script src="guide.js?v=20261111"></script>
-<script src="app.js?v=20261111"></script>
-<script src="page-index.js?v=20261111"></script>
+<script src="data.js?v=20261112"></script>
+<script src="img.js?v=20261112"></script>
+<script src="forge-core.js?v=20261112"></script>
+<script src="guide.js?v=20261112"></script>
+<script src="app.js?v=20261112"></script>
+<script src="page-index.js?v=20261112"></script>
 </body>
 </html>

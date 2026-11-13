@@ -216,7 +216,7 @@
     var box = UI.$("#watch");
     var rows = visiblePlans();
     if (!UI.tracked().length) {
-      box.innerHTML = '<div class="empty"><h3>Nothing tracked yet</h3><p>Tick anyone in the list on the left — a character you own, ' +
+      box.innerHTML = '<div class="empty"><h3>Nothing tracked yet</h3><p>Tick anyone in the <b>Select</b> list — a character you own, ' +
         "the 7.2 banner kids, whoever you are building. Their card appears here with level, talents and exactly what they still owe.</p>" +
         '<p style="margin-top:12px"><button class="btn gold" data-bulk="new">＋ Track everyone new in 7.2</button></p></div>';
       return;
@@ -247,7 +247,7 @@
           '<td class="num">' + esc(F.fmtWeeks(p.eta.weeks)) + "</td>" +
           "<td>" + statusBadge(p) + "</td></tr>";
       }).join("") + "</tbody></table></div>" +
-      '<p class="dim" style="font-size:12px;margin-top:9px">Click any row to open its card and edit it.</p>';
+      '<p class="dim" style="font-size:12px;margin-top:9px">Select any row to open its card and edit it.</p>';
   }
 
   /* ================= 3. summary strip ================= */
@@ -406,6 +406,14 @@
 
   /* ================= events ================= */
   UI.$("#q").addEventListener("input", function () { pick.q = this.value.trim(); renderPicker(); });
+
+  /* phones: the Select list is a full-screen sheet behind this button (app.css, max-width 720px) */
+  UI.$("#btnPick").addEventListener("click", function () { UI.openModal(".picker"); });
+  var phone = window.matchMedia ? window.matchMedia("(max-width: 720px)") : null;
+  if (phone) {
+    var leftPhone = function () { if (!phone.matches) UI.closeModal(".picker"); };   /* e.g. the phone was turned sideways */
+    if (phone.addEventListener) phone.addEventListener("change", leftPhone); else if (phone.addListener) phone.addListener(leftPhone);
+  }
 
   document.addEventListener("click", function (ev) {
     var chip = ev.target.closest("[data-f]");
@@ -594,21 +602,28 @@
     UI.$("#ioMsg").textContent = "";
     UI.openModal("#io");
   });
+  var ioSay = function (msg) { UI.$("#ioMsg").textContent = msg; };
   UI.$("#btnCopyOut").addEventListener("click", function () {
-    copy(UI.$("#ioText"), "#ioMsg", "Tracker copied to the clipboard.");
+    UI.copyText(UI.$("#ioText").value, function () { ioSay("Tracker copied to the clipboard."); },
+      function () { ioSay("Copy was blocked — select the text in the box and copy it by hand."); });
   });
   UI.$("#btnDownload").addEventListener("click", function () {
-    var blob = new Blob([UI.exportJSON()], { type: "application/json" });
-    var a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = "irminsul-tracker.json";
-    a.click();
-    setTimeout(function () { URL.revokeObjectURL(a.href); }, 4000);
+    UI.saveTextFile("irminsul-tracker.json", UI.exportJSON(), "application/json");
+  });
+  /* the way back in: pick the saved file instead of pasting a page of text on a phone */
+  var ioFile = UI.$("#ioFile");
+  UI.$("#btnOpenFile").addEventListener("click", function () { ioFile.value = ""; ioFile.click(); });
+  ioFile.addEventListener("change", function () {
+    var file = ioFile.files && ioFile.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function () { UI.$("#ioText").value = String(reader.result || ""); ioSay("Opened " + file.name + " — press Import."); };
+    reader.onerror = function () { ioSay("Could not read that file."); };
+    reader.readAsText(file);
   });
   UI.$("#btnPasteIn").addEventListener("click", function () {
-    if (!navigator.clipboard || !navigator.clipboard.readText) { UI.$("#ioMsg").textContent = "Clipboard read is blocked — paste into the box instead."; return; }
-    navigator.clipboard.readText().then(function (t) { UI.$("#ioText").value = t; UI.$("#ioMsg").textContent = "Pasted — press Import."; },
-      function () { UI.$("#ioMsg").textContent = "Clipboard read is blocked — paste into the box instead."; });
+    UI.readClipboard(function (text) { UI.$("#ioText").value = text; ioSay("Pasted — press Import."); },
+      function () { ioSay("Clipboard read is blocked — paste into the box instead."); });
   });
   UI.$("#btnImport").addEventListener("click", function () {
     try {
@@ -617,22 +632,13 @@
       renderAll();
     } catch (e) { UI.$("#ioMsg").innerHTML = '<span style="color:var(--bad)">Could not read that: ' + esc(e.message) + "</span>"; }
   });
-  function copy(el, msgSel, ok) {
-    el.select();
-    var done = function () { UI.$(msgSel).textContent = ok; };
-    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(el.value).then(done, function () { document.execCommand("copy"); done(); });
-    else { document.execCommand("copy"); done(); }
-  }
   UI.$("#btnCopyShop").addEventListener("click", function () {
     var txt = F.consolidate(UI.plans()).filter(function (e) { return e.miss > 0; })
       .map(function (e) { return "- " + e.name + " (" + (F.MAT_LABEL[e.cat] || e.cat) + "): need " + e.want + ", banked " + e.have + ", missing " + e.miss + " — " + e.who.filter(function (w) { return w.miss; }).map(function (w) { return w.name; }).join(", "); })
       .join("\n");
-    var ta = document.createElement("textarea");
-    ta.value = "Irminsul Forge — combined material list\n" + txt;
-    document.body.appendChild(ta); ta.select();
-    try { document.execCommand("copy"); UI.toast("Combined list copied — " + txt.split("\n").length + " lines"); }
-    catch (e) { UI.toast("Copy blocked by the browser", "warn"); }
-    ta.remove();
+    UI.copyText("Irminsul Forge — combined material list\n" + txt,
+      function () { UI.toast("Combined list copied — " + txt.split("\n").length + " lines"); },
+      function () { UI.toast("Copy blocked by the browser", "warn"); });
   });
 
   /* a team handed over from the builder (?t=a,b,c,d) lands in the watchlist */

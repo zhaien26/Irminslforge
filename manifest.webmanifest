@@ -1,0 +1,21 @@
+{
+  "name": "Irminsul Forge",
+  "short_name": "Irminsul Forge",
+  "description": "Genshin Impact planner: builds and stat targets for 123 characters, a team builder with step-by-step rotations, and a material tracker.",
+  "lang": "en",
+  "start_url": "index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0b1220",
+  "theme_color": "#0b1220",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Team builder", "url": "builder.html" },
+    { "name": "Tracking Center", "url": "tracker.html" }
+  ]
+}

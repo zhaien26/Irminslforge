@@ -48,7 +48,7 @@ nav.top {
   box-shadow: 0 0 0 1px #ffffff22, 0 6px 16px -8px var(--gold2); position: relative;
 }
 .brand .sigil::after {
-  content: ""; position: absolute; inset: 7px; border-radius: 4px;
+  content: ""; position: absolute; top: 7px; right: 7px; bottom: 7px; left: 7px; border-radius: 4px;
   background: conic-gradient(from 30deg, #0b1220cc, transparent 30%, #0b1220aa 60%, transparent 85%);
 }
 .brand small { display: block; font-size: 11px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; color: var(--gold2); }
@@ -144,7 +144,7 @@ section + section { margin-top: 22px; }
 
 /* ---------- avatars ---------- */
 .av { position: relative; flex: 0 0 auto; border-radius: 11px; overflow: hidden; display: grid; place-items: center; background: #0e1728; border: 1px solid var(--line); }
-.av img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 12%; }
+.av img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 12%; }
 .av .mono { font-weight: 800; letter-spacing: .5px; color: #fff; text-shadow: 0 1px 3px #0009; }
 .av .el { position: absolute; left: 3px; bottom: 2px; font-size: 10px; line-height: 1; text-shadow: 0 1px 2px #000; }
 .av.r4 { filter: saturate(.86); }
@@ -317,9 +317,9 @@ details.more[open] > summary::before { transform: rotate(90deg); }
 .day .none { font-size: 11.5px; color: var(--dim); font-style: italic; margin-top: 7px; }
 
 /* ---------- modal ---------- */
-.modal { position: fixed; inset: 0; z-index: 90; display: none; place-items: center; padding: 22px; background: #050912cc; backdrop-filter: blur(4px); }
+.modal { position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 90; display: none; place-items: center; padding: 22px; background: #050912cc; backdrop-filter: blur(4px); }
 .modal.open { display: grid; }
-.modal > .box { width: min(980px, 100%); max-height: 88vh; overflow: auto; background: linear-gradient(180deg, #16243c, #101a2c);
+.modal > .box { width: 100%; max-width: 980px; max-height: 88vh; overflow: auto; background: linear-gradient(180deg, #16243c, #101a2c);
   border: 1px solid var(--line2); border-radius: 18px; padding: 20px; box-shadow: 0 30px 80px -30px #000; }
 .modal .box h2 { font-size: 20px; margin-bottom: 4px; }
 .modalhead { display: flex; gap: 12px; align-items: flex-start; justify-content: space-between; margin-bottom: 14px; }
@@ -366,7 +366,7 @@ footer.foot { margin-top: 34px; padding-top: 18px; border-top: 1px solid var(--l
 .notice { display: flex; gap: 10px; align-items: flex-start; border: 1px solid #6b5424; background: #241d0d; color: #ffe9b8; border-radius: var(--r2); padding: 10px 12px; font-size: 12.5px; }
 .notice.info { border-color: #2f5c72; background: #10242f; color: #cdeefb; }
 .notice b { color: #fff; }
-@media print { nav.top, .hero, .toolbar, .picker, .heroactions, footer.foot, .toasts { display: none !important; } body { background: #fff; color: #000; } }
+@media print { nav.top, .tabbar, .pickopen, .hero, .toolbar, .picker, .heroactions, footer.foot, .toasts { display: none !important; } body { background: #fff; color: #000; } }
 
 /* ==========================================================================
    Guide: stat targets + rotation (guide.js)
@@ -466,4 +466,237 @@ details.more .statreq { margin-top: 10px; }
   .presets { display: flex; overflow-x: auto; scroll-snap-type: x proximity; padding-bottom: 8px; -webkit-overflow-scrolling: touch; }
   .presets .preset { flex: 0 0 78%; scroll-snap-align: start; }
 }
+/* ==========================================================================
+   Phones and touch screens
+   · any touch screen (pointer: coarse): finger-sized controls, 16px form text
+   · up to 720px wide: tab bar along the bottom, short header, pop-ups become
+     full-screen sheets, long lists get denser, filters become swipe rows
+   ========================================================================== */
+.tabbar, .pickopen, .pickdone { display: none; }
+.chiprow { display: contents; }                        /* only a box of its own on phones */
+.iobtns { display: flex; flex-wrap: wrap; }
+.in-app #btnShare, .in-app #btnPrint { display: none; }   /* inside the Android app a page link and printing lead nowhere */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+a, button, summary, select, input, label, [role="button"] { -webkit-tap-highlight-color: transparent; }
+a, button, summary, [role="button"] { touch-action: manipulation; }
+#roster, #rotationPanel, #teamStatsPanel, #farm, #shop, .wcard { scroll-margin-top: 76px; }   /* land below the sticky nav */
+.modal > .box, .picklist, .scrollx { overscroll-behavior: contain; }
+.wcards, .shop { grid-template-columns: repeat(auto-fill, minmax(min(330px, 100%), 1fr)); }   /* a bare 330px made 360px phones scroll sideways */
+@media (max-width: 1100px) { .picklist { max-height: 440px; } }   /* one column: the list used to push the cards 6000px down */
+.trk > *, .two > * { min-width: 0; }                   /* lets the wide table scroll inside its own box instead of widening the page */
+#rates .stepper { display: flex; }                     /* ".kv span" made these steppers stack: minus, number, plus on three lines */
+#rates .stepper input { flex: 1 1 auto; min-width: 0; }
+#rates .stepper button { flex: 0 0 auto; }
+/* phones held sideways: keep clear of the notch (needs viewport-fit=cover, set in the pages) */
+nav.top { padding-left: max(20px, env(safe-area-inset-left, 0px)); padding-right: max(20px, env(safe-area-inset-right, 0px)); }
+.wrap { padding-left: max(20px, env(safe-area-inset-left, 0px)); padding-right: max(20px, env(safe-area-inset-right, 0px)); }
+@media (hover: none) { .rcard:hover { transform: none; } }
+
+@media (pointer: coarse) {
+  input, select, textarea { font-size: 16px !important; }   /* iOS zooms the page in when a field has smaller text */
+  .btn { min-height: 44px; padding: 10px 16px; }
+  .btn.sm { min-height: 40px; padding: 8px 13px; font-size: 13px; }
+  .btn.xs { min-height: 36px; padding: 6px 11px; font-size: 12px; }
+  .chip { min-height: 38px; padding: 7px 13px; font-size: 13px; }
+  .trackbtn { min-height: 36px; padding: 7px 12px; font-size: 12.5px; }
+  .seg button { min-height: 38px; padding: 8px 14px; font-size: 13px; }
+  .pill { min-height: 36px; padding: 7px 12px; font-size: 12.5px; }
+  .whochip { min-height: 32px; padding: 6px 10px; font-size: 12px; }
+  .xbtn { min-width: 40px; min-height: 40px; font-size: 17px; }
+  select, input[type="search"], input[type="text"], input[type="number"] { min-height: 42px; }
+  .stepper button { min-width: 38px; min-height: 40px; font-size: 17px; }
+  .stepper input { min-height: 40px; }
+  .pickrow { min-height: 54px; padding: 8px 10px; }
+  .pickrow input { width: 22px; height: 22px; }
+  details.more > summary { min-height: 44px; font-size: 13.5px; }
+  .lvrow { grid-template-columns: 1fr 98px; }
+  .lvrow input[type="range"] { height: 36px; }
+  .lvnum input { width: 64px; }
+  .tbl th, .tbl td { padding: 11px 10px; }
+  .navlinks a { padding: 11px 14px; }
+}
+
+/* tracker cards: a material's stepper gets a line of its own, and the three talent steppers share the width */
+@media (pointer: coarse), (max-width: 720px) {
+  .wcard .mrow { grid-template-columns: 22px minmax(0, 1fr) auto auto; grid-template-areas: "ic nm nm gap" "ic need step step"; gap: 6px 9px; padding: 8px 9px; }
+  .wcard .mrow > :first-child { grid-area: ic; align-self: start; margin-top: 1px; }
+  .wcard .mrow .nm { grid-area: nm; white-space: normal; }
+  .wcard .mrow .need { grid-area: need; align-self: center; text-align: left; }
+  .wcard .mrow .stepper { grid-area: step; justify-self: end; width: 148px; display: flex; }
+  .wcard .mrow .stepper input { flex: 1 1 auto; width: auto; min-width: 0; }
+  .wcard .mrow .gap { grid-area: gap; align-self: start; }
+  .tals { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .tal .stepper { display: flex; width: 100%; }
+  .tal .stepper button { flex: 1 1 30px; min-width: 0; padding-left: 0; padding-right: 0; }
+  .tal .stepper input { flex: 1 1 30px; width: auto; min-width: 0; padding-left: 0; padding-right: 0; }
+}
+/* very narrow phones: one talent per line, so the − and + stay big enough to hit */
+@media (max-width: 345px) {
+  .panelhead > .rowline { flex-wrap: wrap; }
+  #slotSeg { flex-basis: 100%; }
+  .tals { grid-template-columns: minmax(0, 1fr); }
+  .tal { flex-direction: row; justify-content: space-between; }
+  .tal .stepper { width: 156px; }
+}
+
+@media (max-width: 720px) {
+  .wrap { padding: 4px max(12px, env(safe-area-inset-right, 0px)) calc(88px + env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-left, 0px)); }
+  section + section { margin-top: 14px; }
+  #roster, #rotationPanel, #teamStatsPanel, #farm, #shop, .wcard { scroll-margin-top: 10px; }
+  .panel { padding: 14px 13px; }
+  .panelhead { gap: 8px; margin-bottom: 10px; }
+  .panelhead h2 { font-size: 16px; }
+  footer.foot { margin-top: 22px; }
+
+  /* header: just the name. It scrolls away — the tab bar below does the navigating */
+  nav.top { position: static; margin: 0; padding: 12px 14px 8px; gap: 8px; background: none; backdrop-filter: none; border-bottom: 0; }
+  nav.top { padding-left: max(14px, env(safe-area-inset-left, 0px)); padding-right: max(14px, env(safe-area-inset-right, 0px)); }
+  .navlinks > a, .navpill { display: none; }
+  .navlinks { gap: 6px; }
+
+  .tabbar {
+    display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
+    padding: 4px 8px 4px;
+    padding: 4px max(8px, env(safe-area-inset-right, 0px)) calc(4px + env(safe-area-inset-bottom, 0px)) max(8px, env(safe-area-inset-left, 0px));
+    background: #0b1220; border-top: 1px solid var(--line);
+  }
+  /* see-through with a blur only where the blur exists; otherwise the page text would show through the bar */
+  @supports ((-webkit-backdrop-filter: blur(12px)) or (backdrop-filter: blur(12px))) {
+    .tabbar { background: rgba(11, 18, 32, .95); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
+  }
+  .typing .tabbar { display: none; }     /* the on-screen keyboard is up: app.js sets this, so the bar does not ride on top of it */
+  .tabbar a { position: relative; flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+    min-height: 50px; border-radius: 12px; color: var(--muted); font-size: 11px; font-weight: 650; letter-spacing: .02em; text-decoration: none; }
+  .tabbar svg { width: 23px; height: 23px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .tabbar a[aria-current="page"] { color: var(--gold); }
+  .tabbar a:active { background: #1d2c47; }
+  .tabcount { position: absolute; top: 3px; left: calc(50% + 6px); min-width: 17px; height: 17px; padding: 0 4px; border-radius: 999px;
+    display: flex; align-items: center; justify-content: center; font: 700 10px/1 var(--mono); color: #0e2417; background: var(--good); }
+  .tabcount[data-n="0"] { display: none; }
+  .toasts { left: 12px; right: 12px; bottom: calc(70px + env(safe-area-inset-bottom, 0px)); justify-items: stretch; }
+  .toast { max-width: none; }
+
+  .hero { gap: 12px; margin-bottom: 14px; }
+  .kicker { font-size: 10.5px; padding: 4px 10px; }
+  .hero h1 { font-size: 23px; margin-top: 10px; }
+  .hero p.lead { font-size: 13.5px; margin-top: 8px; }
+  .heroactions { width: 100%; gap: 8px; }
+  .heroactions .btn { flex: 1 1 auto; justify-content: center; }
+  .hero > .panel { min-width: 0 !important; flex: 1 1 100% !important; }
+
+  /* pop-ups fill the screen; the close button stays in the corner while the sheet scrolls */
+  .modal { padding: 0; background: var(--bg); backdrop-filter: none; }
+  /* a flex column, not the grid used on desktop: it gives the sheet the height of the screen on every engine,
+     so the sheet itself scrolls (older Chrome lets a "height: 100%" grid item grow with its content instead) */
+  .modal.open { display: flex; flex-direction: column; align-items: stretch; }
+  .modal > .box { flex: 1 1 auto; min-height: 0; width: 100%; max-width: none; max-height: none; border: 0; border-radius: 0; box-shadow: none; background: var(--bg);
+    padding: 16px 14px 28px;
+    padding: 16px max(14px, env(safe-area-inset-right, 0px)) calc(28px + env(safe-area-inset-bottom, 0px)) max(14px, env(safe-area-inset-left, 0px)); }
+  .modalhead { padding-right: 46px; }
+  .modal .modalhead .xbtn { position: fixed; top: 10px; right: 10px; z-index: 5; width: 40px; height: 40px; border-radius: 50%;
+    background: #22334f; border: 1px solid var(--line2); color: var(--txt); box-shadow: 0 6px 18px -8px #000; }
+
+  /* filters: one row you swipe sideways instead of four wrapped rows */
+  .search { width: 100%; }
+  .search input { flex: 1 1 auto; width: 100%; min-width: 0; }
+  .chiprow, #pEl, .shoptabs { display: flex; flex-wrap: nowrap; gap: 6px; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch;
+    margin-left: -12px; margin-right: -12px; padding-left: 12px; padding-right: 12px; }
+  .chiprow::-webkit-scrollbar, #pEl::-webkit-scrollbar, .shoptabs::-webkit-scrollbar { display: none; }
+  .chiprow > .chips { display: contents; }
+  .chiprow .chip, #pEl .chip, .shoptabs > * { flex: 0 0 auto; white-space: nowrap; }
+  .chiprow .chip[data-f="clear"] { order: -1; }          /* "clear" first, where it can be seen */
+
+  /* roster: search + filters stay in reach while the 123 cards scroll */
+  #roster > .panelhead { display: contents; }
+  #roster h2 { margin: 0 2px 8px; }
+  #roster .toolbar { position: sticky; top: 0; z-index: 30; margin: 0 -12px 10px !important; padding: 8px 12px;
+    background: rgba(11, 18, 32, .96); border-bottom: 1px solid var(--line); }
+  #roster .toolbar .left { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; width: 100%; }
+
+  /* cards as rows: face, three lines of text, Track on the right */
+  .grid { grid-template-columns: repeat(auto-fill, minmax(min(290px, 100%), 1fr)); gap: 8px; }
+  .rcard { align-items: center; gap: 10px; padding: 10px; }
+  .rcard .meta { padding-right: 102px; }
+  .rcard .role { height: auto; max-height: 33px; }      /* one or two lines, no blank second line */
+  .rcard .foot { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); flex-direction: column; align-items: flex-end; gap: 4px;
+    margin: 0; padding: 0; border: 0; }
+  .rcard .foot .mini-pct.dim, .rcard .foot .ring { display: none; }
+  /* "new and featured": a strip of faces you swipe through; the full cards are in the roster right below */
+  #featRow { display: flex; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch;
+    margin-left: -13px; margin-right: -13px; padding: 0 13px 2px; }
+  #featRow::-webkit-scrollbar { display: none; }
+  #featRow .rcard { flex: 0 0 104px; min-width: 0; flex-direction: column; gap: 7px; padding: 10px 6px 9px; text-align: center; }
+  #featRow .rcard .meta { width: 100%; padding: 0; }
+  #featRow .rcard h3 { margin: 0; font-size: 13px; }
+  #featRow .rcard .stars { display: block; margin-top: 1px; }
+  #featRow .rcard .role, #featRow .rcard .sub, #featRow .rcard .foot { display: none; }
+  /* patch notes stay folded until asked for (browsers without :has() simply show the first block) */
+  .panelhead:has(#btnPatch[aria-expanded="false"]) { margin-bottom: 0; }
+  .panelhead:has(#btnPatch[aria-expanded="false"]) + #patchBrief { display: none; }
+
+  /* team builder */
+  .panelhead > .rowline { width: 100%; align-items: center; }
+  #slotSeg { flex: 1 1 auto; display: flex; }
+  #slotSeg button { flex: 1 1 0; white-space: nowrap; padding-left: 4px; padding-right: 4px; }
+  .slots { gap: 8px; }
+  .slot { min-height: 108px; padding: 10px; }
+  .slot > .badge { position: static !important; order: 9; }   /* "tracked" goes under the name instead of over the face */
+  #pick .modalhead .xbtn { display: none; }               /* "Done" sits next to the search box instead */
+  #pick > .box { padding-top: 0; }                         /* the search bar sticks flush to the top, whichever way a browser counts padding */
+  #pick .modalhead { padding: 16px 0 0; margin-bottom: 8px; }
+  #pick .toolbar { position: sticky; top: 0; z-index: 2; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px;
+    margin: 0 -14px 10px !important; padding: 8px 14px; background: var(--bg); border-bottom: 1px solid var(--line); }
+  #pick .toolbar .search { grid-area: 1 / 1; }
+  #pick .toolbar > .btn { grid-area: 1 / 2; }
+  #pEl { grid-area: 2 / 1 / 3 / 3; margin-left: -14px; margin-right: -14px; padding-left: 14px; padding-right: 14px; }
+  #pGrid { max-height: none !important; overflow: visible !important; }
+
+  /* tracking center: the Select list is a screen of its own, opened with a button */
+  .trk { gap: 12px; }
+  .pickopen { display: flex; align-items: center; gap: 12px; }
+  .pickopen .btn { flex: 1 1 auto; justify-content: center; }
+  .pickopen .dim { flex: 0 0 auto; font-size: 13px; }
+  .pickopen b { color: var(--good); }
+  .picker { display: none; }
+  .picker.open { display: flex; position: fixed; left: 0; top: 0; right: 0; bottom: 0; z-index: 90; max-height: none; margin: 0; gap: 10px;
+    padding: 12px 12px 10px;
+    padding: 12px max(12px, env(safe-area-inset-right, 0px)) calc(10px + env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-left, 0px));
+    border: 0; border-radius: 0; box-shadow: none; background: var(--bg); }
+  .picker.open .picklist { max-height: none; min-height: 0; }
+  .picker.open > p { display: none; }
+  .picker .panelhead { flex-wrap: nowrap; }
+  .picker .panelhead h2 { flex: 1 1 auto; }
+  .pickdone { display: inline-flex; }
+  .trk .toolbar .left, .trk .toolbar .right { width: 100%; }
+  .trk .toolbar .field { flex: 1 1 130px; }
+  .trk .toolbar .field select { flex: 1 1 auto; width: 100%; min-width: 0; }
+  .trk .toolbar .right .btn { flex: 1 1 0; justify-content: center; }
+  .wcard { padding: 12px; }
+  .pickrow .sub { margin-left: 5px; }
+  /* "your remaining debt" on a build sheet: name on one line, need / have / missing below it */
+  #sheetBox .mrow { grid-template-columns: 22px auto minmax(0, 1fr) auto; gap: 3px 12px; padding: 8px 9px; }
+  #sheetBox .mrow > :first-child { grid-row: 1 / 3; align-self: start; }
+  #sheetBox .mrow .nm { grid-column: 2 / -1; grid-row: 1; white-space: normal; }
+  #sheetBox .mrow .need { grid-row: 2; text-align: left; }
+  #sheetBox .mrow .gap { grid-row: 2; grid-column: 4; }
+  /* combined list: name and totals first, then when it opens, then who needs it */
+  .shopitem { gap: 7px 10px; align-items: start; }
+  .shopitem .nm { display: block; white-space: normal; }
+  .shopitem > span:nth-child(2) .meta { display: block; margin-top: 2px; }
+  .shopitem .right { display: contents; }
+  .shopitem .right .big { grid-column: 3; grid-row: 1; text-align: right; font-size: 16px; }
+  .shopitem .right .meta { grid-column: 1 / -1; }
+  .whochips { gap: 6px; margin-top: 0; }
+  .wcard .foot .acts { gap: 6px; }
+  .kv { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .days { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .day { min-height: 0; }
+  .scrollx { max-height: 70vh; }
+}
+/* A phone whose built-in page viewer was never updated (Chrome before 57) has no CSS grid.
+   The tab bar above is a flex row for that reason; this keeps pop-ups opening there too. */
+@supports not (display: grid) {
+  @media (min-width: 721px) { .modal.open { display: flex; align-items: center; justify-content: center; } }
+}
+
 [hidden] { display: none !important; }

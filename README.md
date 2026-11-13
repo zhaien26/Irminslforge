@@ -58,6 +58,27 @@ The targets are guidelines for a Lv.90 character with a Lv.90 weapon and +20 art
 character screen outside combat. To change one, edit the `STAT` / `ROT` tables at the top of `guide.js`
 — the header comment explains every field, and `npm test` tells you if something is missing.
 
+## Phones
+
+On screens up to 720 px wide the same pages switch to a phone layout: a bottom tab bar (Roster / Team /
+Tracker), pop-ups that open as full-screen sheets and close with the phone's Back button, filters that
+swipe sideways in one row, and touch-sized buttons. There is nothing to configure and no second set of
+files — desktop and phone are served by the same ones.
+
+**Install it like an app, without a store.** `manifest.webmanifest` and `sw.js` make the site
+installable. In Chrome on Android use the **⤓ Install as an app** button on the roster page (or the
+browser menu → *Install app* / *Add to Home screen*); on an iPhone or iPad use Safari's *Share → Add to
+Home Screen*. Installed, it gets its own icon, opens full-screen and works with no connection.
+
+`sw.js` keeps an offline copy, but it never shows an old file while the phone is online: every request
+goes to the server first and the kept copy is only used when there is no connection.
+**When you change the site, change the version in two places to the same value:** `VERSION` at the top of
+`sw.js`, and the `?v=` tag in the three HTML pages. `npm test` fails if they differ, or if a page loads a
+file that `sw.js` does not keep.
+
+There is also an Android app (an APK that shows these same pages from inside the app, with no internet
+permission). It is built from this folder by `make-apk.sh` in the separate `irminsul-forge-android` project.
+
 ## Layout
 
 ```
@@ -70,9 +91,12 @@ data.js           7.2 roster, materials, builds, banners, presets, domain schedu
 img.js            base64 icon atlas: 123 portraits, 309 material icons, weapons, sets
 forge-core.js     all tracker maths — no DOM, shared by the pages and the tests
 guide.js          stat targets + rotation logic for all 123 characters — no DOM, loaded after forge-core.js
-app.js            shared UI helpers + watchlist store
+app.js            shared UI helpers + watchlist store; sheets, phone Back button, install button
 page-*.js         per-page rendering and events
-test/             36 assertions over the data, the logic and the rendered pages
+manifest.webmanifest  name, colours and icons used when the site is installed to a home screen
+sw.js             the offline copy (server first; the kept copy only when there is no connection)
+icon-192.png, icon-512.png, icon-maskable-512.png   the app icons
+test/             checks over the data, the guide logic, the phone / offline wiring and the rendered pages
 ```
 
 ## Run it

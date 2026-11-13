@@ -2,11 +2,18 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Irminsul Forge · Tracking Center — pick characters, monitor their builds</title>
 <meta name="description" content="Select exactly which Genshin 7.2 characters you want to watch, then monitor levels, talents, missing materials, weekly-boss gates and a combined farming list across the whole watchlist.">
-<meta name="theme-color" content="#070b14">
-<link rel="stylesheet" href="app.css?v=20261111">
+<meta name="theme-color" content="#0b1220">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Irminsul Forge">
+<link rel="stylesheet" href="app.css?v=20261112">
 </head>
 <body>
 
@@ -24,13 +31,20 @@
   </div>
 </nav>
 
+<!-- phones: the three sections as a tab bar along the bottom (hidden on wide screens) -->
+<nav class="tabbar" aria-label="Sections">
+  <a href="index.html"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8.2" r="3.7"/><path d="M4.6 20c.5-3.7 3.4-5.6 7.4-5.6s6.9 1.9 7.4 5.6"/></svg><span>Roster</span></a>
+  <a href="builder.html"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.6" y="3.6" width="7.2" height="7.2" rx="2"/><rect x="13.2" y="3.6" width="7.2" height="7.2" rx="2"/><rect x="3.6" y="13.2" width="7.2" height="7.2" rx="2"/><rect x="13.2" y="13.2" width="7.2" height="7.2" rx="2"/></svg><span>Team</span></a>
+  <a href="tracker.html" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.8 6.4l1.7 1.7 3-3.3M3.8 12.4l1.7 1.7 3-3.3M3.8 18.4l1.7 1.7 3-3.3M12.4 6.8h7.8M12.4 12.8h7.8M12.4 18.8h7.8"/></svg><span>Tracker</span><b class="tabcount" data-watchcount data-n="0">0</b></a>
+</nav>
+
 <div class="wrap">
 
   <header class="hero">
     <div>
       <span class="kicker"><span class="dot"></span>Version 7.2 · Hour of Ruin</span>
       <h1>Tracking Center — <em>pick who you watch</em>, then monitor them</h1>
-      <p class="lead">Tick characters in the list on the left — that is the whole setup. Every tracked character
+      <p class="lead">Tick characters in the <b>Select</b> list — that is the whole setup. Every tracked character
         gets a live card with level, talent levels and what you still owe, and everything rolls up into one
         combined material list, a weekly farm plan and a “who is closest to ready” ranking. No digging through
         character pages, no popups: this is the one screen.</p>
@@ -51,16 +65,25 @@
   <section class="stats" id="stats" aria-label="Watchlist summary"></section>
 
   <section class="trk">
+    <!-- phones: the list of 123 opens as its own screen, so the cards you track stay at the top -->
+    <div class="pickopen">
+      <button class="btn gold" id="btnPick">＋ Select characters</button>
+      <span class="dim"><b class="mono" data-watchcount>0</b> tracked</span>
+    </div>
+
     <!-- ---------- the selection sector ---------- -->
     <aside class="picker panel" aria-label="Select characters to track">
       <div class="panelhead" style="margin-bottom:2px">
         <h2>Select <span id="pickCount"></span></h2>
         <span class="badge gold" id="trackedBadge">0 tracked</span>
+        <button class="btn sm gold pickdone" data-close=".picker">Done</button>
       </div>
       <div class="tools">
         <div class="search"><input id="q" type="search" placeholder="Search 123 characters…" autocomplete="off" aria-label="Search characters"></div>
-        <div class="chips" id="elChips" role="group" aria-label="Filter by element"></div>
-        <div class="chips" id="miscChips" role="group" aria-label="Extra filters"></div>
+        <div class="chiprow">
+          <div class="chips" id="elChips" role="group" aria-label="Filter by element"></div>
+          <div class="chips" id="miscChips" role="group" aria-label="Extra filters"></div>
+        </div>
       </div>
       <div class="picklist" id="pickList"></div>
       <div class="pickfoot">
@@ -69,7 +92,7 @@
         <button class="btn xs" data-bulk="none">Clear list</button>
       </div>
       <p class="dim" style="margin:0;font-size:11.5px">Ticking a box only decides <b>who you monitor</b> — it never
-        changes your team. Material counts are saved in this browser.</p>
+        changes your team. Material counts are saved on this device.</p>
     </aside>
 
     <!-- ---------- the monitoring sector ---------- -->
@@ -129,7 +152,7 @@
   </section>
 
   <footer class="foot">
-    <span>Irminsul Forge · Tracking Center — fan-made planning tool for Genshin Impact 7.2. Progress is stored only in this browser.</span>
+    <span>Irminsul Forge · Tracking Center — fan-made planning tool for Genshin Impact 7.2. Progress is stored only on this device.</span>
     <span><a href="index.html">Roster</a> · <a href="builder.html">Team builder</a></span>
   </footer>
 </div>
@@ -152,12 +175,14 @@
 <div class="modal" id="io" role="dialog" aria-modal="true" aria-label="Export or import">
   <div class="box">
     <div class="modalhead"><div><h2>Back up your tracker</h2>
-      <p class="muted" style="margin:4px 0 0;font-size:13px">Everything lives in this browser. Copy this text to move it to
-        another device, or paste a saved copy to restore it.</p></div>
+      <p class="muted" style="margin:4px 0 0;font-size:13px">Everything lives on this device. Save a copy to move it to
+        another one, then open that copy there (or paste its text into the box) and press Import.</p></div>
       <button class="xbtn" data-close="#io" aria-label="Close">✕</button></div>
-    <div class="field" style="margin-bottom:10px"><button class="btn sm" id="btnCopyOut">Copy</button>
-      <button class="btn sm ghost" id="btnDownload">Download .json</button>
-      <button class="btn sm ghost" id="btnPasteIn">Load from clipboard</button></div>
+    <div class="field iobtns" style="margin-bottom:10px"><button class="btn sm" id="btnCopyOut">Copy</button>
+      <button class="btn sm ghost" id="btnDownload">Save as a file</button>
+      <button class="btn sm ghost" id="btnOpenFile">Open a saved file</button>
+      <button class="btn sm ghost" id="btnPasteIn">Load from clipboard</button>
+      <input type="file" id="ioFile" accept=".json,application/json,text/plain" hidden></div>
     <textarea id="ioText" rows="14" style="width:100%;font-family:var(--mono);font-size:12px" spellcheck="false"></textarea>
     <div class="foot" style="border:0;padding-top:12px">
       <button class="btn sm" id="btnImport">Import what's in the box</button>
@@ -166,11 +191,11 @@
   </div>
 </div>
 
-<script src="data.js"></script>
-<script src="img.js"></script>
-<script src="forge-core.js"></script>
-<script src="guide.js?v=20261111"></script>
-<script src="app.js?v=20261111"></script>
-<script src="page-tracker.js?v=20261111"></script>
+<script src="data.js?v=20261112"></script>
+<script src="img.js?v=20261112"></script>
+<script src="forge-core.js?v=20261112"></script>
+<script src="guide.js?v=20261112"></script>
+<script src="app.js?v=20261112"></script>
+<script src="page-tracker.js?v=20261112"></script>
 </body>
 </html>

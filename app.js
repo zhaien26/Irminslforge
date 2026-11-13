@@ -69,7 +69,7 @@
   var migrated = F.migrateLegacy();
   if (migrated) { watch = store.data; }
 
-  function save() { store.save(); }
+  function save() { store.save(); syncNav(); }       /* every change shows at once in the "tracked" counters (header and tab bar) */
   function tracked() { return Object.keys(watch.chars); }
   function isTracked(n) { return !!watch.chars[n]; }
   function stateOf(n) { return watch.chars[n] || F.emptyState(); }
@@ -107,41 +107,160 @@
   }
 
   /* ---------- toasts ---------- */
-  function toast(msg, kind) {
+  function toast(msg, kind, ms) {          /* ms: how long it stays (default 2.6 s) */
     var box = $("#toasts");
     if (!box) { box = document.createElement("div"); box.id = "toasts"; box.className = "toasts"; document.body.appendChild(box); }
     var t = document.createElement("div");
     t.className = "toast" + (kind ? " " + kind : "");
     t.innerHTML = msg;
     box.appendChild(t);
-    setTimeout(function () { t.style.transition = "opacity .4s"; t.style.opacity = "0"; setTimeout(function () { t.remove(); }, 420); }, 2600);
+    setTimeout(function () { t.style.transition = "opacity .4s"; t.style.opacity = "0"; setTimeout(function () { t.remove(); }, 420); }, ms || 2600);
   }
 
-  /* ---------- modal ---------- */
+  /* ---------- modal ----------
+     Phones show these as full-screen sheets (app.css). Opening one adds a history entry, so
+     the phone's Back button or back-swipe closes the sheet instead of leaving the page. */
+  var COARSE = !!(window.matchMedia && window.matchMedia("(pointer: coarse)").matches);
+  var opened = [];
+  function onSheetEntry() {
+    try { return !!(window.history.state && window.history.state.forgeSheet); } catch (e) { return false; }
+  }
   function openModal(sel) {
     var m = $(sel); if (!m) return;
+    if (opened.indexOf(m) < 0) opened.push(m);
     m.classList.add("open");
     document.body.style.overflow = "hidden";
-    var f = m.querySelector("input,select,button");
+    if (!onSheetEntry()) { try { window.history.pushState({ forgeSheet: String(sel) }, ""); } catch (e) { /* history is unavailable: Back simply leaves the page */ } }
+    /* with a finger, focusing the search box would throw the keyboard over the list — focus a button instead */
+    var f = m.querySelector(COARSE ? "button" : "input,select,button");
     if (f) setTimeout(function () { f.focus(); }, 30);
   }
-  function closeModal(sel) {
+  function closeModal(sel, viaHistory) {
     var m = typeof sel === "string" ? $(sel) : sel; if (!m) return;
+    var i = opened.indexOf(m);
+    if (i >= 0) opened.splice(i, 1);
     m.classList.remove("open");
+    if (opened.length) return;
     document.body.style.overflow = "";
+    /* closed with a button: drop the history entry that opening it added */
+    if (viaHistory !== true && onSheetEntry()) { try { window.history.back(); } catch (e) { /* see above */ } }
   }
+  function closeAll(viaHistory) { opened.slice().forEach(function (m) { closeModal(m, viaHistory); }); }
   document.addEventListener("click", function (e) {
     var closer = e.target.closest && e.target.closest("[data-close]");
     if (closer) { closeModal(closer.getAttribute("data-close")); return; }
     if (e.target.classList && e.target.classList.contains("modal")) closeModal(e.target);
   });
   document.addEventListener("keydown", function (e) {
-    if (e.key === "Escape") $$(".modal.open").forEach(function (m) { closeModal(m); });
+    if (e.key === "Escape") closeAll();
   });
+  window.addEventListener("popstate", function () {
+    if (onSheetEntry()) return;               /* stepped Forward onto a sheet's entry: nothing to undo */
+    closeAll(true);
+  });
+  /* reloaded, or came back from another page, onto the entry of a sheet that is not open any more */
+  window.addEventListener("load", function () {
+    setTimeout(function () {
+      if (onSheetEntry() && !opened.length) { try { window.history.back(); } catch (e) { /* see above */ } }
+    }, 500);
+  });
+
+  /* ---------- Android app (optional) ----------
+     The Android app shows these same pages from inside the APK and injects a small helper,
+     window.ForgeApp. A browser never has it, so each function below falls back to the web way. */
+  var APP = (window.ForgeApp && typeof window.ForgeApp === "object") ? window.ForgeApp : null;
+  if (APP) document.documentElement.classList.add("in-app");
+
+  function copyText(text, done, fail) {
+    var ok = function () { if (done) done(); }, no = function () { if (fail) fail(); };
+    text = String(text == null ? "" : text);
+    if (APP && APP.copyText) { try { if (APP.copyText(text) === false) no(); else ok(); } catch (e) { no(); } return; }
+    var legacy = function () {
+      var ta = document.createElement("textarea"), worked = false;
+      ta.value = text; ta.setAttribute("readonly", "");          /* readonly: no keyboard pops up on a phone */
+      ta.style.cssText = "position:fixed;top:0;left:0;width:1px;height:1px;opacity:0";
+      document.body.appendChild(ta); ta.select();
+      try { ta.setSelectionRange(0, text.length); worked = document.execCommand("copy"); } catch (e) { worked = false; }
+      ta.remove();
+      if (worked) ok(); else no();
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(ok, legacy);
+    else legacy();
+  }
+  function readClipboard(done, fail) {
+    var no = function () { if (fail) fail(); };
+    if (APP && APP.readClipboard) {
+      var got = "";
+      try { got = APP.readClipboard(); } catch (e) { got = ""; }
+      if (got) done(String(got)); else no();
+      return;
+    }
+    if (!navigator.clipboard || !navigator.clipboard.readText) { no(); return; }
+    navigator.clipboard.readText().then(function (t) { if (t) done(t); else no(); }, no);
+  }
+  /* ---------- install to the home screen ----------
+     sw.js keeps an offline copy of the site, which is what lets a phone install it like an app.
+     Any button marked data-install appears only where installing is possible:
+     Chrome / Edge / Samsung Internet offer a prompt; on an iPhone it is done from the Share menu. */
+  var canSW = false;
+  try { canSW = !APP && /^https?:$/.test(location.protocol) && !!navigator.serviceWorker; } catch (e) { canSW = false; }   /* the getter throws inside a sandboxed frame */
+  if (canSW) {
+    window.addEventListener("load", function () {
+      try { navigator.serviceWorker.register("sw.js").then(null, function () { /* no sw.js on the server: the site works as before, just not offline */ }); } catch (e) { /* same */ }
+    });
+  }
+  var installEvent = null;
+  var STANDALONE = !!((window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) || window.navigator.standalone);
+  var IOS = /iPad|iPhone|iPod/.test(navigator.userAgent || "") || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  function showInstall(on) { $$("[data-install]").forEach(function (b) { b.hidden = !on; }); }
+  window.addEventListener("beforeinstallprompt", function (e) { installEvent = e; showInstall(true); });
+  window.addEventListener("appinstalled", function () { installEvent = null; showInstall(false); });
+  document.addEventListener("click", function (e) {
+    var b = e.target.closest && e.target.closest("[data-install]");
+    if (!b) return;
+    if (installEvent) {
+      var ev = installEvent; installEvent = null;
+      try { ev.prompt(); } catch (err) { /* already used */ }
+      showInstall(false);
+    } else {
+      toast("On an iPhone or iPad: tap the <b>Share</b> button, then <b>Add to Home Screen</b>.", "", 9000);   /* long enough to read and find the button */
+    }
+  });
+  function initInstall() { if (canSW && IOS && !STANDALONE) showInstall(true); }
+
+  function saveTextFile(name, text, mime) {
+    if (APP && APP.saveFile) { APP.saveFile(String(name), String(text)); return; }
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([text], { type: mime || "text/plain" }));
+    a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 4000);
+  }
+
+  /* ---------- phones: the tab bar steps aside while the keyboard is up ----------
+     Where the keyboard makes the window shorter (the Android app, some browsers) the tab bar would sit on top of
+     the keyboard and take a fifth of what is left of the screen. "Keyboard is up" = a text field has the focus AND
+     the window is much shorter than it has been at this width. It comes back the moment the keyboard closes. */
+  var tallest = { w: 0, h: 0 };
+  function typingNow() {
+    var w = window.innerWidth, h = window.innerHeight, el = document.activeElement;
+    if (w !== tallest.w) tallest = { w: w, h: h };                       /* turned sideways: start measuring again */
+    if (h > tallest.h) tallest.h = h;
+    var field = !!el && (el.tagName === "TEXTAREA" ||
+      (el.tagName === "INPUT" && !/^(checkbox|radio|range|button|submit|reset|file|color|image)$/.test(el.type)));
+    var up = field && h < tallest.h * 0.72;
+    var root = document.documentElement;
+    if (up) root.classList.add("typing"); else root.classList.remove("typing");
+  }
+  window.addEventListener("resize", typingNow);
+  document.addEventListener("focusin", typingNow);
+  document.addEventListener("focusout", function () { setTimeout(typingNow, 0); });
+  typingNow();
 
   /* ---------- nav badge ---------- */
   function syncNav() {
-    $$("[data-watchcount]").forEach(function (el) { el.textContent = tracked().length; });
+    var n = tracked().length;
+    $$("[data-watchcount]").forEach(function (el) { el.textContent = n; el.setAttribute("data-n", n); });   /* data-n="0" hides the tab badge */
     $$("[data-ownedcount]").forEach(function (el) { el.textContent = (watch.owned || []).length; });
     var blocked = store.isBlocked();
     $$("[data-storage-notice]").forEach(function (el) { el.hidden = !blocked; });
@@ -239,7 +358,7 @@
       (opts.mains ? mainsHTML(s) : "") +
       (s.note ? '<p class="statnote">' + esc(s.note) + "</p>" : "") +
       (edit ? '<p class="stathelp"><b data-statsum="' + esc(name) + '">' + esc(sumText(sc)) + "</b> — type the numbers from your in-game " +
-        "character screen into “Yours” and each box tells you how far off you are. Saved in this browser only.</p>" : "") +
+        "character screen into “Yours” and each box tells you how far off you are. Saved on this device only.</p>" : "") +
       (opts.legend === false ? "" : opts.legend === "short" ? '<p class="statlegend">' + esc(G.STAT_SHORT) + "</p>" :
         '<p class="statlegend">' + esc(s.legend) +
         (sc.rows.some(function (r) { return r.range; }) ? " " + esc(G.ER_HINT) : "") + " " + esc(s.early) + "</p>") +
@@ -331,12 +450,13 @@
     toggle: toggle, planOf: planOf, plans: plans, isOwned: isOwned, toggleOwned: toggleOwned,
     rates: rates, sortKey: sortKey, view: view, featured: function () { return FEATURED; }, isFeatured: isFeatured,
     exportJSON: exportJSON, importJSON: importJSON,
+    copyText: copyText, readClipboard: readClipboard, saveTextFile: saveTextFile, inApp: !!APP,
     myStats: myStats, setMyStat: setMyStat, statScore: statScore, statSummary: statSummary,
     statBlock: statBlock, statCard: statCard, refreshStats: refreshStats,
     keycaps: keycaps, phaseBadge: phaseBadge, rotLine: rotLine,
     storageBlocked: function () { return store.isBlocked(); },
     migrated: function () { return migrated; }
   };
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", syncNav);
-  else syncNav();
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", function () { syncNav(); initInstall(); });
+  else { syncNav(); initInstall(); }
 })();
