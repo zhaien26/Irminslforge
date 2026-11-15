@@ -7,6 +7,22 @@
   "use strict";
   var D = window.FORGE, F = window.ForgeCore, IMG = window.FORGE_IMG || {};
   var G = window.ForgeGuide || null;   /* guide.js: stat targets + rotations (pages still work without it) */
+  function imgStore() { return window.FORGE_IMG || IMG; }
+
+  /* precompute lowercase search strings once for instant O(1) filtering across all pages */
+  var HAY = {};
+  (D && D.chars ? D.chars : []).forEach(function (c) {
+    HAY[c.n] = (c.n + " " + c.e + " " + c.w + " " + (c.role || "") + " " + (c.reg || "") + " " + (c.tags || []).join(" ") + " " + (c.ver || "")).toLowerCase();
+  });
+  function searchHay(c) { return HAY[c.n] || (c.n + " " + c.e + " " + c.w).toLowerCase(); }
+  function debounce(fn, ms) {
+    var t;
+    return function () {
+      var ctx = this, args = arguments;
+      clearTimeout(t);
+      t = setTimeout(function () { fn.apply(ctx, args); }, ms || 45);
+    };
+  }
 
   var EL_COLOR = D.elColor, EL_GLYPH = D.elGlyph;
   var CAT_COLOR = {
@@ -36,10 +52,10 @@
   }
   function avatar(name, size) {
     var c = F.byName(name) || { e: "Anemo", r: 4 };
-    var px = size || 44, src = IMG.IMG_CHAR && IMG.IMG_CHAR[name];
-    var tint = "linear-gradient(150deg," + (EL_COLOR[c.e] || "#3d5c86") + "44,#0e1728 62%)";
+    var px = size || 44, st = imgStore(), src = st.IMG_CHAR && st.IMG_CHAR[name];
+    var tint = "linear-gradient(150deg," + (EL_COLOR[c.e] || "#38e8ff") + "38,#070c18 68%)";
     return '<span class="av r' + c.r + '" style="width:' + px + 'px;height:' + px + 'px;--fs:' + Math.max(10, Math.round(px * .34)) + 'px;background:' + tint + '">' +
-      (src ? '<img src="' + src + '" alt="" loading="lazy" decoding="async" onerror="this.remove()">' : "") +
+      (src ? '<img src="' + src + '" alt="' + esc(name) + '" width="' + px + '" height="' + px + '" decoding="async" onerror="this.style.display=\'none\'">' : "") +
       '<span class="mono" style="font-size:var(--fs)">' + esc(initials(name)) + "</span>" +
       (px >= 34 ? '<span class="el" style="color:' + (EL_COLOR[c.e] || "#fff") + '">' + esc(EL_GLYPH[c.e] || "") + "</span>" : "") +
       "</span>";
@@ -55,10 +71,10 @@
     return elTag(c) + ' <span class="dim">·</span> ' + c.r + "★ <span class=\"dim\">·</span> " + esc(c.w);
   }
   function matIcon(name, cat, px) {
-    var src = IMG.IMG_MAT && IMG.IMG_MAT[name];
+    var st = imgStore(), src = st.IMG_MAT && st.IMG_MAT[name];
     var size = px || 22;
     var bg = CAT_COLOR[cat] || "#3d5c86";
-    if (src) return '<img src="' + src + '" alt="" loading="lazy" decoding="async" style="width:' + size + 'px;height:' + size + 'px;border-radius:6px;display:block" onerror="this.style.display=\'none\'">';
+    if (src) return '<img src="' + src + '" alt="" width="' + size + '" height="' + size + '" decoding="async" style="width:' + size + 'px;height:' + size + 'px;border-radius:6px;display:block;flex:0 0 auto" onerror="this.style.display=\'none\'">';
     return '<span style="width:' + size + 'px;height:' + size + 'px;border-radius:6px;display:grid;place-items:center;font-weight:800;font-size:' + Math.round(size * .5) + 'px;color:#0b1220;background:' + bg + '">' + esc(String(name).slice(0, 1)) + "</span>";
   }
   var catColor = function (c) { return CAT_COLOR[c] || "#3d5c86"; };
@@ -69,18 +85,25 @@
   var migrated = F.migrateLegacy();
   if (migrated) { watch = store.data; }
 
+  var _planCache = Object.create(null);
+  function invalidatePlan(n) { if (n) delete _planCache[n]; else _planCache = Object.create(null); }
+
   function save() { store.save(); syncNav(); }       /* every change shows at once in the "tracked" counters (header and tab bar) */
   function tracked() { return Object.keys(watch.chars); }
   function isTracked(n) { return !!watch.chars[n]; }
   function stateOf(n) { return watch.chars[n] || F.emptyState(); }
   function put(n, patch) {
     watch.chars[n] = Object.assign({}, stateOf(n), patch);
+    invalidatePlan(n);
     save();
   }
-  function add(n) { if (!watch.chars[n]) { watch.chars[n] = F.emptyState(); save(); } }
-  function remove(n) { delete watch.chars[n]; save(); }
+  function add(n) { if (!watch.chars[n]) { watch.chars[n] = F.emptyState(); invalidatePlan(n); save(); } }
+  function remove(n) { delete watch.chars[n]; invalidatePlan(n); save(); }
   function toggle(n) { if (isTracked(n)) remove(n); else add(n); save(); return isTracked(n); }
-  function planOf(n) { return F.plan(n, stateOf(n)); }
+  function planOf(n) {
+    if (!_planCache[n]) _planCache[n] = F.plan(n, stateOf(n));
+    return _planCache[n];
+  }
   function plans() {
     return tracked().filter(function (n) { return F.byName(n); })
       .filter(function (n) { return !watch.onlyOwned || isOwned(n); })
@@ -266,7 +289,7 @@
     $$("[data-storage-notice]").forEach(function (el) { el.hidden = !blocked; });
   }
   document.addEventListener("forge:watch", syncNav);
-  function changed() { save(); syncNav(); document.dispatchEvent(new CustomEvent("forge:watch")); }
+  function changed() { invalidatePlan(); save(); syncNav(); document.dispatchEvent(new CustomEvent("forge:watch")); }
 
   /* ---------- export / import ---------- */
   function exportJSON() {
@@ -441,9 +464,9 @@
   }
 
   window.UI = {
-    D: D, F: F, G: G, esc: esc, $: $, $$: $$, slug: slug,
+    D: D, F: F, G: G, esc: esc, $: $, $$: $$, slug: slug, img: imgStore, searchHay: searchHay, debounce: debounce,
     avatar: avatar, avatarStack: avatarStack, stars: stars, subline: subline, elTag: elTag,
-    matIcon: matIcon, catColor: catColor, elColor: function (e) { return EL_COLOR[e] || "#8fd8ee"; },
+    matIcon: matIcon, catColor: catColor, elColor: function (e) { return EL_COLOR[e] || "#38e8ff"; },
     bar: bar, ring: ring, toast: toast, openModal: openModal, closeModal: closeModal, syncNav: syncNav,
     changed: changed, watch: function () { return watch; }, save: changed,
     tracked: tracked, isTracked: isTracked, stateOf: stateOf, put: put, add: add, remove: remove,

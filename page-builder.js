@@ -1,19 +1,19 @@
 /* ==========================================================================
-   Team builder. Slots + presets + rotation guide + stat targets + analysis,
-   and a one-click hand-off into the Tracking Center so a planned team becomes
-   a monitored team.
+   Team builder (Astral Layout 2 · Bento Hero + Live Synergy Pulse).
+   Slots + presets + rotation guide + stat targets + analysis + DOM-cached
+   character picker for instant zero-flicker searching.
    ========================================================================== */
 (function () {
   "use strict";
   var UI = window.UI, F = UI.F, D = UI.D;
-  var G = window.ForgeGuide || null;           /* guide.js — rotations and stat targets */
+  var G = window.ForgeGuide || null;
   var esc = UI.esc;
   var SLOTS = 4;
-  /* the 7.2 lineups from data.js, then the beginner lineups from guide.js */
   var PRESETS = (D.presets || []).concat(G ? G.STARTERS : []);
   var st = { team: [null, null, null, null], active: 0, pq: "", pEl: "all" };
+  var _pickNodes = Object.create(null);
+  var _pickEmpty = null;
 
-  /* ?t=Mitya,Valeriy,… reproduces a shared team */
   (function init() {
     var t = new URLSearchParams(location.search).get("t");
     if (!t) return;
@@ -42,12 +42,39 @@
       var c = n && F.byName(n);
       return '<div class="slot' + (n ? " filled" : "") + (st.active === i ? " active" : "") + '" data-act="pick" data-i="' + i + '" role="button" tabindex="0">' +
         (n ? '<button class="xbtn clear" data-act="clear" data-i="' + i + '" aria-label="Clear slot">✕</button>' +
-          UI.avatar(n, 46) + '<span class="nm">' + esc(n) + "</span>" +
+          UI.avatar(n, 48) + '<span class="nm">' + esc(n) + "</span>" +
           '<span class="role">' + UI.elTag(c) + " · " + esc(LINE[c.cat] || c.cat) + "</span>" +
           (UI.isTracked(n) ? '<span class="badge good" style="position:absolute;left:8px;top:8px">tracked</span>' : "")
           : '<span style="font-size:24px;color:var(--dim)">＋</span><span class="nm">Slot ' + (i + 1) + "</span><span class=\"role\">pick a character</span>") +
         "</div>";
     }).join("");
+  }
+
+  /* ---------- bento pulse tile ---------- */
+  function renderPulse() {
+    var box = UI.$("#builderPulse");
+    if (!box) return;
+    var team = st.team.filter(Boolean);
+    if (team.length < 2) {
+      box.innerHTML = '<p class="dim" style="margin:0">Fill at least 2 slots (or load a 7.2 preset below) to view resonance, Stellar/Lunar engine status, and role coverage at a glance.</p>';
+      return;
+    }
+    var e = els();
+    var res = Object.keys(e).filter(function (k) { return e[k] >= 2; });
+    var linch = has("linchpin"), sc = e.Cryo && e.Electro && linch;
+    var lunar = (has("lunarAll") || team.indexOf("Columbina") >= 0) && (has("lunarBloom") || has("lunarCharged") || has("lunarCrystallize"));
+    var cats = team.map(function (n) { return F.byName(n).cat; });
+    var completeRoles = (cats.indexOf("dps") >= 0 || cats.indexOf("sub") >= 0) && cats.indexOf("sustain") >= 0 && cats.indexOf("support") >= 0;
+
+    box.innerHTML =
+      '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">' +
+      '<span class="badge ' + (res.length ? "ice" : "") + '">' + (res.length ? esc(res.map(function (k) { return (D.resonance[k] || [k])[0]; }).join(" + ")) : "No resonance") + "</span>" +
+      (sc ? '<span class="badge good">✦ Stellar-Conduct ON</span>' : (e.Cryo && e.Electro ? '<span class="badge bad">No Linchpin</span>' : "")) +
+      (lunar ? '<span class="badge gold">☾ Lunar Engine ON</span>' : "") +
+      '<span class="badge ' + (completeRoles ? "good" : "warn") + '">' + (completeRoles ? "Roles Covered" : "Missing Role") + "</span>" +
+      "</div>" +
+      '<div style="display:flex;gap:8px;align-items:center">' + UI.avatarStack(team, 30) +
+      '<span class="dim" style="font-size:12px">' + team.length + " / 4 filled · " + team.filter(UI.isTracked).length + " tracked</span></div>";
   }
 
   /* ---------- detail for the focused slot ---------- */
@@ -62,7 +89,6 @@
     var c = F.byName(n), b = c.build || {};
     var er = G ? G.erOf(n) : (D.erTarget && D.erTarget[n]);
     var gs = G ? G.statsFor(n) : null;
-    /* characters without a build sheet in data.js still get a set / main stats / substats from the guide */
     var art = b.art || (gs && gs.set ? [gs.set, gs.mainsRaw, gs.subs] : null);
     var row = function (label, list) {
       if (!list || !list.length) return "";
@@ -136,7 +162,7 @@
 
     var owed = team.map(function (n) { return UI.isTracked(n) ? UI.planOf(n).missing : null; }).filter(function (x) { return x !== null; });
     box.innerHTML = '<div style="display:grid;gap:9px">' + out.map(function (r) {
-      return '<div style="display:flex;gap:10px;align-items:flex-start;border:1px solid var(--line);border-radius:10px;padding:9px 11px;background:#0d1626">' +
+      return '<div style="display:flex;gap:10px;align-items:flex-start;border:1px solid var(--line);border-radius:10px;padding:9px 11px;background:rgba(5,8,17,0.72)">' +
         '<span class="badge ' + (r[2] || "") + '" style="flex:0 0 106px;justify-content:center">' + esc(r[0]) + "</span>" +
         '<span style="font-size:13px;flex:1 1 auto">' + r[1] + "</span></div>";
     }).join("") + "</div>" +
@@ -159,7 +185,7 @@
     if (wrap) wrap.hidden = !starters.length;
   }
 
-  /* ---------- rotation guide: who to press, in what order, and why ---------- */
+  /* ---------- rotation guide ---------- */
   var lastRotation = null;
   function rotationAside(rot) {
     var notes = rot && rot.notes.length
@@ -208,7 +234,7 @@
       "</p></div>" + rotationAside(rot) + "</div>";
   }
 
-  /* ---------- stat targets for everyone in the team ---------- */
+  /* ---------- stat targets ---------- */
   function renderTeamStats() {
     var box = UI.$("#teamStats"), panel = UI.$("#teamStatsPanel");
     if (!box) return;
@@ -222,31 +248,61 @@
       : "";
   }
 
-  /* ---------- character picker ---------- */
-  function renderPick() {
-    var rows = D.chars.filter(function (c) {
-      if (st.pEl !== "all" && c.e !== st.pEl) return false;
-      if (st.pq && (c.n + " " + c.e + " " + c.w + " " + (c.role || "")).toLowerCase().indexOf(st.pq.toLowerCase()) < 0) return false;
-      return true;
+  /* ---------- DOM-cached character picker ---------- */
+  function initPickGrid() {
+    var pGrid = UI.$("#pGrid");
+    if (pGrid.childElementCount) return;
+    var frag = document.createDocumentFragment();
+    D.chars.forEach(function (c) {
+      var tpl = document.createElement("template");
+      var on = UI.isTracked(c.n);
+      tpl.innerHTML =
+        '<div class="rcard" data-act="choose" data-name="' + esc(c.n) + '" role="button" tabindex="0">' +
+        '<div class="toprow">' + UI.avatar(c.n, 44) +
+        '<div class="meta"><h3><span>' + esc(c.n) + "</span>" + UI.stars(c.r) + "</h3>" +
+        '<div class="sub" style="font-size:11px">' + UI.elTag(c) + ' <span class="dim">·</span> ' + esc(c.w) + "</div></div></div>" +
+        '<div class="role">' + esc(c.role || "") + "</div>" +
+        '<div class="foot"><span class="mini-pct dim">' + esc(c.w) + "</span>" +
+        '<button class="trackbtn" data-act="track" data-name="' + esc(c.n) + '" aria-pressed="' + on + '">' +
+        (on ? "✓ Tracked" : "＋ Track") + "</button></div></div>";
+      var el = tpl.content.firstElementChild;
+      _pickNodes[c.n] = el;
+      frag.appendChild(el);
     });
+    _pickEmpty = document.createElement("p");
+    _pickEmpty.className = "dim";
+    _pickEmpty.textContent = "Nobody matches.";
+    _pickEmpty.hidden = true;
+    frag.appendChild(_pickEmpty);
+    pGrid.appendChild(frag);
+  }
+  function renderPick() {
+    initPickGrid();
     UI.$("#pEl").innerHTML = ["all", "Pyro", "Hydro", "Anemo", "Electro", "Dendro", "Cryo", "Geo"].map(function (e) {
       return '<button class="chip" data-pel="' + e + '" aria-pressed="' + (st.pEl === e) + '">' + (e === "all" ? "All" : (D.elGlyph[e] || "") + " " + e) + "</button>";
     }).join("");
     UI.$("#pickFor").textContent = "→ slot " + (st.active + 1);
-    UI.$("#pGrid").innerHTML = rows.map(function (c) {
-      return '<div class="rcard" data-act="choose" data-name="' + esc(c.n) + '" role="button" tabindex="0">' + UI.avatar(c.n, 42) +
-        '<div class="meta"><h3>' + esc(c.n) + " " + UI.stars(c.r) + "</h3>" +
-        '<div class="role">' + esc(c.role || "") + "</div>" +
-        '<div class="foot"><span class="mini-pct dim">' + esc(c.w) + "</span>" +
-        '<button class="trackbtn" data-act="track" data-name="' + esc(c.n) + '" aria-pressed="' + UI.isTracked(c.n) + '">' +
-        (UI.isTracked(c.n) ? "✓ Tracked" : "＋ Track") + "</button></div></div></div>";
-    }).join("") || '<p class="dim">Nobody matches.</p>';
+    var q = st.pq.toLowerCase(), shown = 0;
+    for (var i = 0; i < D.chars.length; i++) {
+      var c = D.chars[i];
+      var ok = (st.pEl === "all" || c.e === st.pEl) && (!q || UI.searchHay(c).indexOf(q) >= 0);
+      var el = _pickNodes[c.n];
+      if (el) {
+        el.hidden = !ok;
+        var tb = el.querySelector('[data-act="track"]');
+        if (tb) {
+          var on = UI.isTracked(c.n);
+          tb.setAttribute("aria-pressed", String(on));
+          tb.textContent = on ? "✓ Tracked" : "＋ Track";
+        }
+      }
+      if (ok) shown++;
+    }
+    if (_pickEmpty) _pickEmpty.hidden = shown > 0;
   }
 
   function renderAll() {
-    renderSeg(); renderSlots(); renderRotation(); renderTeamStats(); renderDetail(); renderAnalysis(); UI.syncNav();
-    /* keep the hand-off a real link: middle-click / open-in-tab works, and the
-       team rides along in the query string */
+    renderSeg(); renderSlots(); renderPulse(); renderRotation(); renderTeamStats(); renderDetail(); renderAnalysis(); UI.syncNav();
     var link = UI.$("#btnTrackTeam"), team = st.team.filter(Boolean);
     if (link) {
       link.href = team.length ? "tracker.html?t=" + encodeURIComponent(team.join(",")) : "tracker.html";
@@ -267,7 +323,7 @@
     else if (a === "clear") { ev.stopPropagation(); st.team[Number(b.getAttribute("data-i"))] = null; renderAll(); }
     else if (a === "pick") {
       st.active = Number(b.getAttribute("data-i"));
-      UI.openModal("#pick");          /* open first: renderAll() only fills the list while the picker is open */
+      UI.openModal("#pick");
       renderAll();
       UI.$("#pick .box").scrollTop = 0;
     }
@@ -302,7 +358,10 @@
       renderAll();
     }
   });
-  UI.$("#pq").addEventListener("input", function () { st.pq = this.value.trim(); renderPick(); });
+  UI.$("#pq").addEventListener("input", UI.debounce(function () {
+    st.pq = UI.$("#pq").value.trim();
+    renderPick();
+  }, 40));
   UI.$("#btnShare").addEventListener("click", function () {
     var team = st.team.filter(Boolean);
     if (!team.length) { UI.toast("Put someone in a slot first", "warn"); return; }

@@ -1,7 +1,7 @@
 /* ==========================================================================
-   Tracking Center page logic.
-   Left = choose who to monitor. Right = monitor them. Below = what the whole
-   watchlist still needs, merged, and when you can actually farm it.
+   Tracking Center page logic (Astral Layout 2 + Performance Optimized).
+   - Picker list caches all 123 DOM nodes once so search/filter never re-decodes portraits.
+   - Shared consolidated pool computed once per render pass across stats/farm/shop.
    ========================================================================== */
 (function () {
   "use strict";
@@ -10,8 +10,10 @@
 
   var pick = { q: "", el: "all", r: "all", cat: "all", ownedOnly: false, trackedOnly: false };
   var ui = { expanded: false, shopTab: "all", hideDone: true };
-  var statsOpen = {};                          /* which cards have "Stat targets" open — survives re-renders */
+  var statsOpen = {};
   var watch = UI.watch();
+  var _pickNodes = Object.create(null);
+  var _pickEmpty = null;
 
   /* ---------- little bits ---------- */
   function statusBadge(p) {
@@ -32,18 +34,15 @@
     });
   }
 
-  /* ================= 1. the picker: choose who to track ================= */
-  function rosterFiltered() {
-    var q = pick.q.toLowerCase();
-    return D.chars.filter(function (c) {
-      if (pick.el !== "all" && c.e !== pick.el) return false;
-      if (pick.r !== "all" && String(c.r) !== pick.r) return false;
-      if (pick.cat !== "all" && c.cat !== pick.cat) return false;
-      if (pick.ownedOnly && !UI.isOwned(c.n)) return false;
-      if (pick.trackedOnly && !UI.isTracked(c.n)) return false;
-      if (q && (c.n + " " + c.e + " " + c.w + " " + (c.role || "")).toLowerCase().indexOf(q) < 0) return false;
-      return true;
-    });
+  /* ================= 1. DOM-cached picker: choose who to track ================= */
+  function matchPick(c, q) {
+    if (pick.el !== "all" && c.e !== pick.el) return false;
+    if (pick.r !== "all" && String(c.r) !== pick.r) return false;
+    if (pick.cat !== "all" && c.cat !== pick.cat) return false;
+    if (pick.ownedOnly && !UI.isOwned(c.n)) return false;
+    if (pick.trackedOnly && !UI.isTracked(c.n)) return false;
+    if (q && UI.searchHay(c).indexOf(q) < 0) return false;
+    return true;
   }
   function renderChips() {
     var els = ["Pyro", "Hydro", "Anemo", "Electro", "Dendro", "Cryo", "Geo"];
@@ -63,25 +62,61 @@
       '<button class="chip" data-f="ownedOnly" aria-pressed="' + pick.ownedOnly + '">Owned only <span class="n">' + (watch.owned || []).length + "</span></button>" +
       '<button class="chip" data-f="trackedOnly" aria-pressed="' + pick.trackedOnly + '">Tracked only</button>';
   }
-  function renderPicker() {
-    var rows = rosterFiltered();
-    UI.$("#pickCount").textContent = "(" + rows.length + ")";
-    UI.$("#pickList").innerHTML = rows.map(function (c) {
-      var on = UI.isTracked(c.n);
-      var p = on ? UI.planOf(c.n) : null;
-      var st = p ? F.statusOf(p) : null;
-      var pctLine = p ? '<span class="mini-pct">' + (p.pct) + "% · " + (p.missing ? p.missing + " owed" : "done") + "</span>" :
-        '<span class="mini-pct dim">' + (UI.isOwned(c.n) ? "owned" : "—") + "</span>";
-      return '<button class="pickrow' + (on ? " on" : "") + '" data-act="toggle" data-name="' + esc(c.n) + '" aria-pressed="' + on + '">' +
+  function initPicker() {
+    var box = UI.$("#pickList");
+    if (box.childElementCount) return;
+    var frag = document.createDocumentFragment();
+    D.chars.forEach(function (c) {
+      var tpl = document.createElement("template");
+      tpl.innerHTML =
+        '<button class="pickrow" data-act="toggle" data-name="' + esc(c.n) + '" aria-pressed="false">' +
         UI.avatar(c.n, 30) +
         '<span class="grow"><span class="nm">' + esc(c.n) + "</span>" +
         '<span class="sub">' + esc(D.elGlyph[c.e] || "") + " " + c.r + "★ · " + esc(c.w) + "</span></span>" +
-        pctLine +
-        '<input type="checkbox"' + (on ? " checked" : "") + ' tabindex="-1" aria-hidden="true" style="pointer-events:none">' +
+        '<span class="mini-pct dim">—</span>' +
+        '<input type="checkbox" tabindex="-1" aria-hidden="true" style="pointer-events:none">' +
         "</button>";
-    }).join("") || '<p class="dim" style="padding:12px;font-size:13px">No character matches those filters.</p>';
-    var n = UI.tracked().length;
-    UI.$("#trackedBadge").textContent = n + " tracked";
+      var el = tpl.content.firstElementChild;
+      _pickNodes[c.n] = el;
+      frag.appendChild(el);
+    });
+    _pickEmpty = document.createElement("p");
+    _pickEmpty.className = "dim";
+    _pickEmpty.style.cssText = "padding:12px;font-size:13px";
+    _pickEmpty.textContent = "No character matches those filters.";
+    _pickEmpty.hidden = true;
+    frag.appendChild(_pickEmpty);
+    box.appendChild(frag);
+  }
+  function renderPicker() {
+    initPicker();
+    var q = pick.q.toLowerCase(), shown = 0;
+    for (var i = 0; i < D.chars.length; i++) {
+      var c = D.chars[i], el = _pickNodes[c.n];
+      if (!el) continue;
+      var ok = matchPick(c, q);
+      el.hidden = !ok;
+      if (ok) shown++;
+      var on = UI.isTracked(c.n);
+      el.classList.toggle("on", on);
+      el.setAttribute("aria-pressed", String(on));
+      var cb = el.querySelector("input");
+      if (cb) cb.checked = on;
+      var pctEl = el.querySelector(".mini-pct");
+      if (pctEl) {
+        if (on) {
+          var p = UI.planOf(c.n);
+          pctEl.className = "mini-pct";
+          pctEl.textContent = p.pct + "% · " + (p.missing ? p.missing + " owed" : "done");
+        } else {
+          pctEl.className = "mini-pct dim";
+          pctEl.textContent = UI.isOwned(c.n) ? "owned" : "—";
+        }
+      }
+    }
+    if (_pickEmpty) _pickEmpty.hidden = shown > 0;
+    UI.$("#pickCount").textContent = "(" + shown + ")";
+    UI.$("#trackedBadge").textContent = UI.tracked().length + " tracked";
   }
 
   /* ================= 2. the watchlist ================= */
@@ -118,8 +153,6 @@
       '<span class="gap ' + (done ? "ok" : "no") + '">' + (done ? "✓" : "−" + r.miss) + "</span>" +
       "</li>";
   }
-  /* "Stat targets" fold-out on a watch card (needs guide.js). It has to stay BELOW the
-     materials <details>: patchLive() looks up the first "details.more summary span". */
   function statsHTML(name) {
     var sum = UI.statSummary ? UI.statSummary(name) : "";
     if (!sum) return "";
@@ -195,7 +228,6 @@
       '<div class="rowline" style="margin-top:8px;align-items:center;gap:8px"><span style="min-width:0">' + gateTxt(p) + "</span>" + openNoteFor(p) + "</div>" +
       (p.generic ? '<p class="dim" style="margin:6px 0 0;font-size:11.5px">Generic 5★ totals — this character\'s materials follow the element you are attuned to.</p>' : "");
   }
-  /* gateTxt/openNote get their own helpers so liveHTML stays re-renderable alone */
   function gateTxt(p) {
     if (!p.missing) return "Everything for this build is banked";
     if (!p.bottleneck) return p.missing + " items owed";
@@ -234,7 +266,6 @@
       "<th class=\"num\">Mora</th><th>Gate</th><th class=\"num\">ETA</th><th>Status</th>" +
       "</tr></thead><tbody>" +
       rows.map(function (p) {
-        var c = F.byName(p.name);
         return '<tr data-act="jump" data-name="' + esc(p.name) + '">' +
           '<td><span class="who">' + UI.avatar(p.name, 26) + " " + esc(p.name) + "</span></td>" +
           '<td class="mono">' + p.lvl + '<span class="dim">/' + p.levelCap + "</span></td>" +
@@ -251,10 +282,10 @@
   }
 
   /* ================= 3. summary strip ================= */
-  function renderStats() {
-    var plans = UI.plans();
+  function renderStats(plans, poolAll) {
+    plans = plans || UI.plans();
     var a = F.aggregate(plans, UI.rates());
-    var pool = F.consolidate(plans).filter(function (e) { return e.miss > 0; });
+    var pool = (poolAll || F.consolidate(plans)).filter(function (e) { return e.miss > 0; });
     var today = F.todayPlan();
     var openToday = pool.filter(function (e) { return !e.lockedToday; });
     var tiles = [
@@ -272,9 +303,9 @@
   }
 
   /* ================= 4. week strip ================= */
-  function renderFarm() {
-    var plans = UI.plans();
-    var pool = F.consolidate(plans).filter(function (e) { return e.miss > 0; });
+  function renderFarm(plans, poolAll) {
+    plans = plans || UI.plans();
+    var pool = (poolAll || F.consolidate(plans)).filter(function (e) { return e.miss > 0; });
     var today = new Date().getDay();
     UI.$("#todayBadge").textContent = "Today is " + F.DAY_NAMES[today];
     var others = { specialty: 0, boss: 0, mob: 0, gem: 0, crown: 0 };
@@ -309,10 +340,8 @@
   }
 
   /* ================= 5. combined shopping list ================= */
-  function shopPool() {
-    var pool = F.consolidate(UI.plans());
-    /* the Banked tab is explicitly about finished rows, so it ignores the
-       "hide what is banked" toggle */
+  function filterShopPool(poolAll) {
+    var pool = poolAll.slice();
     if (ui.hideDone && ui.shopTab !== "done") pool = pool.filter(function (e) { return e.miss > 0; });
     if (ui.shopTab === "today") pool = pool.filter(function (e) { return e.miss > 0 && !e.lockedToday; });
     else if (ui.shopTab === "locked") pool = pool.filter(function (e) { return e.miss > 0 && e.lockedToday; });
@@ -320,9 +349,9 @@
     else if (ui.shopTab === "done") pool = pool.filter(function (e) { return e.miss === 0; });
     return pool;
   }
-  function renderShop() {
+  function renderShop(plans, poolAll) {
     var tabs = [["all", "Everything"], ["today", "Open today"], ["locked", "Day-locked"], ["weekly", "Weekly & crowns"], ["done", "Banked"]];
-    var poolAll = F.consolidate(UI.plans());
+    poolAll = poolAll || F.consolidate(plans || UI.plans());
     UI.$("#shopTabs").innerHTML = tabs.map(function (t) {
       var n = t[0] === "all" ? poolAll.filter(function (e) { return e.miss > 0; }).length
         : t[0] === "done" ? poolAll.filter(function (e) { return e.miss === 0; }).length
@@ -332,7 +361,7 @@
     }).join("") + '<label class="chip" style="cursor:pointer"><input type="checkbox" id="hideDone"' + (ui.hideDone ? " checked" : "") +
       ' style="accent-color:var(--gold);margin:0;width:13px;height:13px"> hide what is banked</label>';
 
-    var pool = shopPool();
+    var pool = filterShopPool(poolAll);
     var r = UI.rates();
     var slowest = pool.reduce(function (mx, e) {
       return Math.max(mx, F.weeksFor(e.miss, r[e.cat] === undefined ? 100 : r[e.cat]));
@@ -369,23 +398,27 @@
     return n === 0 ? "today" : (n === 1 ? "tomorrow" : F.DAY_NAMES[(today + n) % 7]);
   }
 
-  /* ================= render ================= */
+  /* ================= render (single consolidate pass) ================= */
   function renderAll() {
-    renderChips(); renderPicker(); renderWatch(); renderStats(); renderFarm(); renderShop();
+    var plans = UI.plans(), pool = F.consolidate(plans);
+    renderChips(); renderPicker(); renderWatch(); renderStats(plans, pool); renderFarm(plans, pool); renderShop(plans, pool);
     UI.$("#sortBy").value = UI.sortKey();
     UI.syncNav();
   }
-  /* light refresh after typing: keeps the cursor where it is */
-  function refreshDerived() { renderPicker(); renderStats(); renderFarm(); renderShop(); UI.syncNav(); }
+  function refreshDerived() {
+    var plans = UI.plans(), pool = F.consolidate(plans);
+    renderPicker(); renderStats(plans, pool); renderFarm(plans, pool); renderShop(plans, pool); UI.syncNav();
+  }
   function patchLive(name) {
     var card = UI.$("#wc-" + slugKey(name));
     if (!card) return;
+    var p = UI.planOf(name);
     var live = card.querySelector("[data-live]");
-    if (live) live.innerHTML = liveHTML(UI.planOf(name));
+    if (live) live.innerHTML = liveHTML(p);
     var cnt = card.querySelector("details.more summary span");
-    if (cnt) { var p = UI.planOf(name); cnt.textContent = "(" + p.missing + " owed)"; }
+    if (cnt) cnt.textContent = "(" + p.missing + " owed)";
     var st = card.querySelector('.hd .badge');
-    if (st) { var p2 = UI.planOf(name); st.outerHTML = statusBadge(p2); }
+    if (st) st.outerHTML = statusBadge(p);
   }
   function patchMatRow(name, mat) {
     var card = UI.$("#wc-" + slugKey(name)); if (!card) return;
@@ -405,13 +438,15 @@
   }
 
   /* ================= events ================= */
-  UI.$("#q").addEventListener("input", function () { pick.q = this.value.trim(); renderPicker(); });
+  UI.$("#q").addEventListener("input", UI.debounce(function () {
+    pick.q = UI.$("#q").value.trim();
+    renderPicker();
+  }, 40));
 
-  /* phones: the Select list is a full-screen sheet behind this button (app.css, max-width 720px) */
   UI.$("#btnPick").addEventListener("click", function () { UI.openModal(".picker"); });
   var phone = window.matchMedia ? window.matchMedia("(max-width: 720px)") : null;
   if (phone) {
-    var leftPhone = function () { if (!phone.matches) UI.closeModal(".picker"); };   /* e.g. the phone was turned sideways */
+    var leftPhone = function () { if (!phone.matches) UI.closeModal(".picker"); };
     if (phone.addEventListener) phone.addEventListener("change", leftPhone); else if (phone.addListener) phone.addListener(leftPhone);
   }
 
@@ -433,7 +468,6 @@
     if (!b) return;
     var act = b.getAttribute("data-act");
     var name = b.getAttribute("data-name");
-    var p = name ? UI.planOf(name) : null;
 
     if (act === "toggle") { UI.toggle(name); refreshDerived(); renderWatch(); flash(name); }
     else if (act === "untrack") { UI.remove(name); renderWatch(); refreshDerived(); UI.toast("Stopped tracking <b>" + UI.esc(name) + "</b>"); }
@@ -459,13 +493,11 @@
     }
   });
 
-  /* remember which "Stat targets" sections are open (toggle does not bubble, hence capture) */
   document.addEventListener("toggle", function (ev) {
     var d = ev.target, n = d && d.getAttribute && d.getAttribute("data-statsfor");
     if (n) statsOpen[n] = !!d.open;
   }, true);
 
-  /* live typing in number/range inputs */
   document.addEventListener("input", function (ev) {
     var el = ev.target;
     var act = el.getAttribute && el.getAttribute("data-act");
@@ -533,7 +565,7 @@
   }
   function flash(name) {
     var card = UI.$("#wc-" + slugKey(name));
-    if (card) { card.animate([{ boxShadow: "0 0 0 2px var(--good)" }, { boxShadow: "0 0 0 0 transparent" }], { duration: 700 }); }
+    if (card && card.animate) { card.animate([{ boxShadow: "0 0 0 2px var(--good)" }, { boxShadow: "0 0 0 0 transparent" }], { duration: 700 }); }
   }
 
   /* toolbar controls */
@@ -610,7 +642,6 @@
   UI.$("#btnDownload").addEventListener("click", function () {
     UI.saveTextFile("irminsul-tracker.json", UI.exportJSON(), "application/json");
   });
-  /* the way back in: pick the saved file instead of pasting a page of text on a phone */
   var ioFile = UI.$("#ioFile");
   UI.$("#btnOpenFile").addEventListener("click", function () { ioFile.value = ""; ioFile.click(); });
   ioFile.addEventListener("change", function () {
@@ -641,7 +672,6 @@
       function () { UI.toast("Copy blocked by the browser", "warn"); });
   });
 
-  /* a team handed over from the builder (?t=a,b,c,d) lands in the watchlist */
   (function adoptFromQuery() {
     var t = new URLSearchParams(location.search).get("t");
     if (!t) return;
@@ -650,7 +680,6 @@
     if (names.length) setTimeout(function () { UI.toast("Tracking " + names.length + " character" + (names.length > 1 ? "s" : "") + " from your team"); renderAll(); }, 0);
   })();
 
-  /* first paint */
   if (UI.migrated()) UI.toast("Moved your tracker from the old build — " + UI.tracked().length + " characters carried over");
   setView();
   renderAll();
